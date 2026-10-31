@@ -1,0 +1,104 @@
+/**
+ * POST /api/explain-changes
+ * Generates a 2-3 sentence plain-language tradeoff explanation of budget recalculation differences.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { callAI } from '../../../lib/ai';
+import { checkRateLimit, getClientIp } from '../../../lib/rate-limit';
+import type { BudgetDifference } from '../../../lib/budget';
+
+export const maxDuration = 30;
+
+const ExplainSchema = z.object({
+  explanation: z.string().min(10),
+});
+
+export type ExplainResponse = z.infer<typeof ExplainSchema>;
+
+function generateDemoExplanation(differences: BudgetDifference[]): string {
+  if (!differences.length) {
+    return 'Your budget plan remains balanced with no category changes required.';
+  }
+  const topDiff = differences[0];
+  const formattedOld = `₹${topDiff.oldAmount.toLocaleString('en-IN')}`;
+  const formattedNew = `₹${topDiff.newAmount.toLocaleString('en-IN')}`;
+  return `Adjusted ${topDiff.category} from ${formattedOld} to ${formattedNew} to balance the revised event specifications. Category floors were maintained to keep every essential vendor viable, while protecting your high-priority items. The overall plan remains strictly within your configured budget.`;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const ip = getClientIp(req);
+    const { allowed } = checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait a minute before retrying.' },
+        { status: 429 }
+      );
+    }
+
+    const rawBody = await req.text();
+    if (rawBody.length > 1000) {
+      return NextResponse.json(
+        { error: 'Input is too long. Please limit to 1000 characters.' },
+        { status: 400 }
+      );
+    }
+
+    let parsedBody: { differences?: BudgetDifference[] };
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
+    }
+
+    const differences = Array.isArray(parsedBody.differences) ? parsedBody.differences : [];
+    if (!differences.length) {
+      return NextResponse.json({
+        data: { explanation: 'No budget changes detected.' },
+        demo: false,
+      });
+    }
+
+    const diffSummary = differences
+      .map(
+        (d) =>
+          `- ${d.category}: was ₹${d.oldAmount.toLocaleString('en-IN')}, now ₹${d.newAmount.toLocaleString(
+            'en-IN'
+          )}. Reason: ${d.reason}`
+      )
+      .join('\n');
+
+    const userPrompt = `Differences from budget recalculation:
+${diffSummary}
+
+TASK:
+Write a 2-3 sentence plain-language tradeoff explanation summarizing what changed and why.
+CRITICAL CONSTRAINT: You must use ONLY the numbers provided above and never invent or change an amount.
+
+Return JSON in this format:
+{
+  "explanation": "Your 2-3 sentence plain-language explanation here."
+}`;
+
+    const demoFallback: ExplainResponse = {
+      explanation: generateDemoExplanation(differences),
+    };
+
+    const result = await callAI<ExplainResponse>({
+      systemPrompt:
+        'You are a financial event planner. Explain budget reallocation tradeoffs clearly and concisely in 2-3 sentences. Use ONLY the numbers provided and never invent or change an amount. Output only valid JSON.',
+      userPrompt,
+      schema: ExplainSchema,
+      demoFallback,
+    });
+
+    return NextResponse.json(result);
+  } catch {
+    return NextResponse.json(
+      { error: 'Failed to explain budget changes.' },
+      { status: 500 }
+    );
+  }
+}

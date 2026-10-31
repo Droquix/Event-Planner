@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Field, SelectField, Btn, Card, SectionHeading, WarningList } from './ui';
+import { Field, SelectField, Btn, Card, SectionHeading, WarningList, AIBadge } from './ui';
 
 export interface EventSetup {
   occasion: string;
@@ -37,6 +37,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
   const [text, setText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
+  const [aiDemo, setAiDemo] = useState<boolean | undefined>(undefined);
 
   function set(field: keyof EventSetup, value: EventSetup[keyof EventSetup]) {
     onSetupChange({ ...setup, [field]: value });
@@ -61,8 +62,13 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
-      const data = await res.json();
-      if (data.error) { setParseError(data.error); return; }
+      const json = await res.json();
+      if (json.error) {
+        setParseError(json.error);
+        return;
+      }
+      const data = json.data || json;
+      setAiDemo(typeof json.demo === 'boolean' ? json.demo : undefined);
       onSetupChange({
         occasion:   data.occasion   || setup.occasion,
         date:       data.date       || setup.date,
@@ -127,10 +133,11 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
               {parseError}
             </p>
           )}
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Btn onClick={handleParse} disabled={parsing || !text.trim()}>
-              {parsing ? '⏳ Parsing…' : '✨ Auto-fill fields'}
+              {parsing ? '⏳ Analyzing with AI…' : '✨ Auto-fill fields'}
             </Btn>
+            <AIBadge demo={aiDemo} loading={parsing} />
           </div>
         </div>
       </Card>

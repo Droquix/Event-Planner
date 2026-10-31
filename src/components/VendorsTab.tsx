@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useId } from 'react';
-import { Btn, Card, SectionHeading, fmt } from './ui';
+import { Btn, Card, SectionHeading, fmt, AIBadge } from './ui';
 import type { BudgetCategory } from '../lib/budget';
 
 // Checklist items every vendor should confirm before booking
@@ -49,6 +49,45 @@ export default function VendorsTab() {
   const [formError, setFormError] = useState('');
   const [filterCat, setFilterCat] = useState<BudgetCategory | 'all'>('all');
   const formNameId = useId();
+
+  // AI draft message state per vendor id
+  const [draftingVendorId, setDraftingVendorId] = useState<string | null>(null);
+  const [vendorDrafts, setVendorDrafts] = useState<
+    Record<string, { message: string; demo: boolean }>
+  >({});
+  const [copiedVendorId, setCopiedVendorId] = useState<string | null>(null);
+
+  async function handleDraftMessage(vendor: VendorQuote, missing: string[]) {
+    setDraftingVendorId(vendor.id);
+    try {
+      const res = await fetch('/api/vendor-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: vendor.category,
+          missingInfo: missing,
+          vendorName: vendor.name,
+        }),
+      });
+      const json = await res.json();
+      if (json.data?.message) {
+        setVendorDrafts((prev) => ({
+          ...prev,
+          [vendor.id]: { message: json.data.message, demo: !!json.demo },
+        }));
+      }
+    } catch {
+      // Gracefully handle draft error
+    } finally {
+      setDraftingVendorId(null);
+    }
+  }
+
+  function handleCopy(vendorId: string, text: string) {
+    navigator.clipboard?.writeText(text);
+    setCopiedVendorId(vendorId);
+    setTimeout(() => setCopiedVendorId(null), 2500);
+  }
 
   function handleAdd() {
     if (!form.name.trim()) { setFormError('Vendor name is required.'); return; }
@@ -288,6 +327,55 @@ export default function VendorsTab() {
                       })}
                     </div>
                   </fieldset>
+
+                  {/* AI Draft Message Action */}
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Btn
+                        variant="secondary"
+                        size="sm"
+                        disabled={draftingVendorId === v.id}
+                        onClick={() => handleDraftMessage(v, unchecked)}
+                      >
+                        {draftingVendorId === v.id
+                          ? '⏳ Drafting with AI...'
+                          : `✉️ Draft inquiry (${unchecked.length} missing)`}
+                      </Btn>
+                      {draftingVendorId === v.id && <AIBadge loading={true} />}
+                      {vendorDrafts[v.id] && draftingVendorId !== v.id && (
+                        <AIBadge demo={vendorDrafts[v.id].demo} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rendered drafted message */}
+                  {vendorDrafts[v.id] && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        background: '#09233f',
+                        border: '1px solid #1e4b7a',
+                        borderRadius: 8,
+                        padding: 14,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#7dd3fc' }}>
+                          Drafted Inquiry Message
+                        </span>
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopy(v.id, vendorDrafts[v.id].message)}
+                        >
+                          {copiedVendorId === v.id ? '✓ Copied!' : '📋 Copy'}
+                        </Btn>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#f1f5f9', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>
+                        {vendorDrafts[v.id].message}
+                      </p>
+                    </div>
+                  )}
                 </Card>
               );
             })}

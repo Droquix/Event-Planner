@@ -42,6 +42,70 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ── AI Source Badge ─────────────────────────────────────────────────────────
+
+export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }) {
+  if (loading) {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: '#1e3a5f',
+          color: '#93c5fd',
+          borderRadius: 20,
+          padding: '3px 12px',
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        <span aria-hidden>⏳</span> Analyzing with AI...
+      </span>
+    );
+  }
+  if (demo === undefined) return null;
+  return demo ? (
+    <span
+      role="status"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: '#451a03',
+        color: '#fde68a',
+        border: '1px solid #78350f',
+        borderRadius: 20,
+        padding: '3px 12px',
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      ⚙️ Demo mode - sample response
+    </span>
+  ) : (
+    <span
+      role="status"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: '#064e3b',
+        color: '#6ee7b7',
+        border: '1px solid #047857',
+        borderRadius: 20,
+        padding: '3px 12px',
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      ✨ Live AI
+    </span>
+  );
+}
+
 // ── Warning banner ───────────────────────────────────────────────────────────
 
 export function WarningList({ warnings }: { warnings: string[] }) {

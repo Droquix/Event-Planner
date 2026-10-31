@@ -10,7 +10,7 @@ import {
   type BudgetCategory,
 } from '../lib/budget';
 import {
-  Btn, Card, SectionHeading, WarningList, LiveRegion, fmt,
+  Btn, Card, SectionHeading, WarningList, LiveRegion, fmt, AIBadge,
 } from './ui';
 import type { EventSetup } from './OnboardingTab';
 
@@ -27,6 +27,12 @@ const CATEGORY_ICONS: Record<BudgetCategory, string> = {
   misc:          '📦',
 };
 
+interface IdeaItem {
+  title: string;
+  whyItFits: string;
+  costRange: string;
+}
+
 export default function BudgetTab({ setup }: Props) {
   const [plan, setPlan] = useState<BudgetPlan | null>(null);
   const [error, setError] = useState('');
@@ -36,10 +42,22 @@ export default function BudgetTab({ setup }: Props) {
   const [announcement, setAnnouncement] = useState('');
   const diffRef = useRef<HTMLDivElement>(null);
 
+  // AI explanation state
+  const [aiExplanation, setAiExplanation] = useState<string>('');
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainDemo, setExplainDemo] = useState<boolean | undefined>(undefined);
+
+  // AI ideas state
+  const [ideas, setIdeas] = useState<IdeaItem[]>([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
+  const [ideasDemo, setIdeasDemo] = useState<boolean | undefined>(undefined);
+
   // Build initial plan from setup
   useEffect(() => {
     setError('');
     setDifferences([]);
+    setAiExplanation('');
+    setExplainDemo(undefined);
     const g = Number(setup.guestCount);
     const b = Number(setup.budget);
     if (!g || !b) return;
@@ -57,6 +75,54 @@ export default function BudgetTab({ setup }: Props) {
       setError(e instanceof Error ? e.message : 'Failed to create plan');
     }
   }, [setup]);
+
+  async function fetchExplanation(diffs: BudgetDifference[]) {
+    if (!diffs.length) return;
+    setExplainLoading(true);
+    try {
+      const res = await fetch('/api/explain-changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ differences: diffs }),
+      });
+      const json = await res.json();
+      if (json.data?.explanation) {
+        setAiExplanation(json.data.explanation);
+        setExplainDemo(json.demo);
+      }
+    } catch {
+      // Gracefully ignore explanation failure
+    } finally {
+      setExplainLoading(false);
+    }
+  }
+
+  async function fetchIdeas() {
+    if (!plan) return;
+    setIdeasLoading(true);
+    try {
+      const res = await fetch('/api/ideas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          occasion: setup.occasion,
+          city: setup.city,
+          priorities: setup.priorities,
+          guestCount: plan.guestCount,
+          surplus: plan.surplus ?? 0,
+        }),
+      });
+      const json = await res.json();
+      if (Array.isArray(json.data?.ideas)) {
+        setIdeas(json.data.ideas);
+        setIdeasDemo(json.demo);
+      }
+    } catch {
+      // Gracefully ignore failure
+    } finally {
+      setIdeasLoading(false);
+    }
+  }
 
   function handleRecalculate() {
     if (!plan) return;
@@ -77,6 +143,14 @@ export default function BudgetTab({ setup }: Props) {
         `${d.category}: ${fmt(d.oldAmount)} → ${fmt(d.newAmount)}`
       ).join('; ');
       setAnnouncement(`Budget updated. Changes: ${changed || 'none'}.`);
+
+      // Trigger AI explanation of tradeoff differences
+      if (result.differences.length > 0) {
+        fetchExplanation(result.differences);
+      } else {
+        setAiExplanation('');
+        setExplainDemo(undefined);
+      }
 
       // Scroll diff section into view
       setTimeout(() => diffRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -248,10 +322,45 @@ export default function BudgetTab({ setup }: Props) {
         </table>
       </Card>
 
-      {/* Differences */}
+      {/* Differences & AI Tradeoff Explanation */}
       {differences.length > 0 && (
         <div ref={diffRef}><Card>
-          <SectionHeading>What changed and why</SectionHeading>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
+              What changed and why
+            </h2>
+            <AIBadge demo={explainDemo} loading={explainLoading} />
+          </div>
+
+          {/* AI Explanation banner */}
+          {(explainLoading || aiExplanation) && (
+            <div
+              style={{
+                background: '#09233f',
+                border: '1px solid #1e4b7a',
+                borderRadius: 8,
+                padding: '14px 16px',
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#7dd3fc' }}>
+                  🤖 AI Tradeoff Explanation
+                </span>
+                <AIBadge demo={explainDemo} loading={explainLoading} />
+              </div>
+              {explainLoading ? (
+                <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
+                  Analyzing recalculation impact with AI...
+                </p>
+              ) : (
+                <p style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                  {aiExplanation}
+                </p>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {differences.map((d, i) => (
               <div
@@ -284,6 +393,79 @@ export default function BudgetTab({ setup }: Props) {
           </div>
         </Card></div>
       )}
+
+      {/* Ideas Panel */}
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
+              💡 AI Personalized Ideas
+            </h2>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+              Creative enhancements tailored for {setup.occasion || 'your event'} in {setup.city || 'your city'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AIBadge demo={ideasDemo} loading={ideasLoading} />
+            <Btn onClick={fetchIdeas} disabled={ideasLoading} size="sm">
+              {ideasLoading ? '⏳ Generating...' : ideas.length ? '🔄 Refresh Ideas' : '✨ Get 5 Ideas'}
+            </Btn>
+          </div>
+        </div>
+
+        {ideasLoading && (
+          <div style={{ padding: '24px 0', textAlign: 'center', color: '#93c5fd', fontSize: 13 }}>
+            ⏳ Consulting AI model for personalized event ideas...
+          </div>
+        )}
+
+        {!ideasLoading && ideas.length === 0 && (
+          <div style={{ padding: '16px 0', color: '#64748b', fontSize: 13, textAlign: 'center' }}>
+            Click &quot;Get 5 Ideas&quot; to generate budget-aligned ideas and special touches for your event.
+          </div>
+        )}
+
+        {!ideasLoading && ideas.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+            {ideas.map((item, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: 8,
+                  padding: 14,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc' }}>
+                    {idx + 1}. {item.title}
+                  </span>
+                  <span
+                    style={{
+                      background: '#14532d',
+                      color: '#86efac',
+                      borderRadius: 12,
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.costRange}
+                  </span>
+                </div>
+                <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5, margin: 0 }}>
+                  {item.whyItFits}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

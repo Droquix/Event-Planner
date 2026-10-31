@@ -4,6 +4,7 @@ import {
   recalculate,
   ALL_CATEGORIES,
   MIN_CATEGORY_FLOOR_RATE,
+  MIN_CATERING_COST_PER_GUEST,
   type BudgetPlan,
 } from '../src/lib/budget';
 
@@ -336,5 +337,168 @@ describe('Budget Planning Logic', () => {
     expect(surplusDiff).toBeDefined();
     expect(surplusDiff?.newAmount).toBe(200_000);
     expect(surplusDiff?.suggestedUse).toBeDefined();
+  });
+
+  // ─── Test 9: Catering-per-guest minimum warning ────────────────────────────
+
+  it('warns when catering cost per guest falls below the configured minimum on plan creation', () => {
+    // At ₹50,000 total with 500 guests, catering gets ~30% = ₹15,000 → ₹30/guest,
+    // which is well below MIN_CATERING_COST_PER_GUEST (₹500).
+    const plan = createBudgetPlan({
+      totalBudget: 50_000,
+      guestCount: 500,
+      occasion: 'party',
+    });
+
+    expect(plan.warnings).toBeDefined();
+    const cateringWarn = plan.warnings!.find((w) =>
+      w.includes('below the recommended minimum')
+    );
+    expect(cateringWarn).toBeDefined();
+    expect(cateringWarn).toContain(`₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest`);
+  });
+
+  it('warns when catering cost per guest falls below the configured minimum after recalculation', () => {
+    // Start with a healthy plan
+    const initialPlan = createBudgetPlan({
+      totalBudget: 1_000_000,
+      guestCount: 50,
+      occasion: 'wedding',
+    });
+
+    // Balloon the guest count so that the fixed catering envelope becomes tiny per head
+    const { plan: newPlan, warnings } = recalculate(initialPlan, {
+      guestCount: 5000,
+    });
+
+    // Per-guest catering: budget stays same so 30% of ₹10,00,000 = ₹3,00,000 / 5000 = ₹60 — well below ₹500
+    const perGuest = newPlan.allocations.catering.amount / newPlan.guestCount;
+    expect(perGuest).toBeLessThan(MIN_CATERING_COST_PER_GUEST);
+
+    const warnList = warnings ?? newPlan.warnings ?? [];
+    const cateringWarn = warnList.find((w) => w.includes('below the recommended minimum'));
+    expect(cateringWarn).toBeDefined();
+    expect(cateringWarn).toContain(`₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest`);
+  });
+
+  it('does NOT warn about catering per guest when the budget is healthy', () => {
+    // ₹10,00,000 with 100 guests: catering ~₹3,00,000 → ₹3,000/guest, well above ₹500
+    const plan = createBudgetPlan({
+      totalBudget: 1_000_000,
+      guestCount: 100,
+      occasion: 'wedding',
+    });
+
+    const cateringWarn = (plan.warnings ?? []).find((w) =>
+      w.includes('below the recommended minimum')
+    );
+    expect(cateringWarn).toBeUndefined();
+  });
+
+  // ─── Test 10: Property-based budget conservation (30 random combinations) ──
+
+  it('invariant: sum(category amounts) + surplus === totalBudget (±1 rupee rounding) across 30 random inputs', () => {
+    // Deterministic pseudo-random number generator seeded at construction time
+    // so test results are reproducible across runs.
+    // LCG parameters from Numerical Recipes (good distribution for small ranges)
+    function makeLcg(seed: number) {
+      let s = seed >>> 0;
+      return function nextInt(min: number, max: number): number {
+        s = Math.imul(1664525, s) + 1013904223;
+        // Use unsigned right-shift to keep positive
+        const r = (s >>> 0) / 0xffffffff;
+        return Math.floor(r * (max - min + 1)) + min;
+      };
+    }
+
+    const rand = makeLcg(42);
+
+    const PRIORITY_POOL = ['food', 'photography', 'decor', 'venue', 'entertainment', 'misc'];
+
+    type TestCase = { budget: number; guests: number; changeBudget?: number; changeGuests?: number };
+
+    // Build 30 varied test cases
+    const cases: TestCase[] = [
+      // Tiny budgets
+      { budget: 10_000,    guests: 10   },
+      { budget: 50_000,    guests: 20   },
+      // Mid-range
+      { budget: 500_000,   guests: 100  },
+      { budget: 750_000,   guests: 200  },
+      { budget: 1_000_000, guests: 150  },
+      // Large
+      { budget: 5_000_000, guests: 500  },
+      { budget: 10_000_000,guests: 1000 },
+      // Guest increase
+      { budget: 1_000_000, guests: 100, changeGuests: 180 },
+      { budget: 800_000,   guests: 80,  changeGuests: 300 },
+      // Guest decrease (generates surplus)
+      { budget: 1_000_000, guests: 200, changeGuests: 50  },
+      { budget: 500_000,   guests: 100, changeGuests: 10  },
+      // Budget cuts (moderate)
+      { budget: 1_000_000, guests: 100, changeBudget: 700_000 },
+      { budget: 800_000,   guests: 100, changeBudget: 600_000 },
+      // Budget cuts (severe)
+      { budget: 1_000_000, guests: 100, changeBudget: 100_000 },
+      { budget: 2_000_000, guests: 200, changeBudget: 50_000  },
+      // Budget increase (generates surplus)
+      { budget: 500_000,   guests: 50,  changeBudget: 800_000 },
+      { budget: 300_000,   guests: 30,  changeBudget: 1_200_000 },
+      // Simultaneous guest + budget change
+      { budget: 1_000_000, guests: 100, changeBudget: 700_000, changeGuests: 130 },
+      { budget: 500_000,   guests: 50,  changeBudget: 300_000, changeGuests: 80  },
+      { budget: 2_000_000, guests: 400, changeBudget: 1_800_000, changeGuests: 350 },
+      // Fully random combinations (filled to reach 30 total)
+      ...Array.from({ length: 10 }, () => {
+        const budget      = rand(50_000, 5_000_000);
+        const guests      = rand(10, 500);
+        const changeKind  = rand(0, 2); // 0=none, 1=budget, 2=guests
+        return {
+          budget,
+          guests,
+          changeBudget:  changeKind === 1 ? rand(10_000, budget) : undefined,
+          changeGuests:  changeKind === 2 ? rand(1, guests + 100) : undefined,
+        };
+      }),
+    ];
+
+    // Verify exactly 30 cases
+    expect(cases.length).toBe(30);
+
+    cases.forEach(({ budget, guests, changeBudget, changeGuests }, idx) => {
+      // Step 1: create the initial plan
+      const plan = createBudgetPlan({
+        totalBudget: budget,
+        guestCount: guests,
+        occasion: 'test',
+        // Pick 0–2 random priorities from the pool for variety
+        priorities: PRIORITY_POOL.slice(0, rand(0, 2)),
+      });
+
+      // Helper that checks the invariant for a given plan
+      function assertConservation(p: BudgetPlan, label: string) {
+        const categorySum = ALL_CATEGORIES.reduce(
+          (sum, cat) => sum + p.allocations[cat].amount,
+          0
+        );
+        const total = categorySum + (p.surplus ?? 0);
+        // Allow at most 1 rupee rounding difference
+        const diff = Math.abs(total - p.totalBudget);
+        expect(diff, `[case ${idx + 1}] ${label}: |sum+surplus - budget| = ${diff} > 1`).toBeLessThanOrEqual(1);
+      }
+
+      // Check invariant on the freshly-created plan
+      assertConservation(plan, 'createBudgetPlan');
+
+      // Step 2: if a change is specified, recalculate and check invariant again
+      if (changeBudget !== undefined || changeGuests !== undefined) {
+        const changes: Record<string, number> = {};
+        if (changeBudget !== undefined) changes.totalBudget = changeBudget;
+        if (changeGuests !== undefined) changes.guestCount  = changeGuests;
+
+        const { plan: newPlan } = recalculate(plan, changes);
+        assertConservation(newPlan, 'recalculate');
+      }
+    });
   });
 });

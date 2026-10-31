@@ -18,6 +18,11 @@ export const MIN_CATEGORY_FLOOR_RATE = 0.03;
 // Minimum floor in INR per category to ensure non-zero allocations
 export const MIN_CATEGORY_FLOOR_INR = 50;
 
+// Minimum acceptable catering cost per guest in INR.
+// This is a rough market estimate for a basic sit-down meal at an Indian event
+// (includes food, service, and basic crockery). Adjust as costs change over time.
+export const MIN_CATERING_COST_PER_GUEST = 500;
+
 export interface CategoryAllocation {
   category: BudgetCategory;
   amount: number;
@@ -228,6 +233,17 @@ export function createBudgetPlan(input: CreateBudgetInput): BudgetPlan {
     allocations.misc.amount += remainder;
     allocations.misc.percentage =
       Math.round((allocations.misc.amount / totalBudget) * 1000) / 10;
+  }
+
+  // Warn when the computed catering budget divided by guest count falls below the
+  // configured minimum — this signals the food budget is unrealistically low.
+  const cateringPerGuest = allocations.catering.amount / guestCount;
+  if (cateringPerGuest < MIN_CATERING_COST_PER_GUEST) {
+    warnings.push(
+      `Catering budget is only ₹${Math.round(cateringPerGuest).toLocaleString('en-IN')} per guest, ` +
+      `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
+      `Consider increasing the total budget or reducing the guest count.`
+    );
   }
 
   const plan: BudgetPlan = {
@@ -474,6 +490,16 @@ export function recalculate(
       updatedAllocations[cat].perGuestAmount =
         newGuests > 0 ? Math.round((amount / newGuests) * 100) / 100 : 0;
     }
+  }
+
+  // Warn when catering per-guest falls below the configured minimum after recalculation.
+  const finalCateringPerGuest = updatedAllocations.catering.amount / newGuests;
+  if (finalCateringPerGuest < MIN_CATERING_COST_PER_GUEST) {
+    warnings.push(
+      `Catering budget is only ₹${Math.round(finalCateringPerGuest).toLocaleString('en-IN')} per guest, ` +
+      `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
+      `Consider increasing the total budget or reducing the guest count.`
+    );
   }
 
   const newPlan: BudgetPlan = {

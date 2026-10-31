@@ -1,8 +1,8 @@
 /**
  * POST /api/parse-intake
  * Parses a free-text event description and extracts structured fields.
- * Uses the Gemini API when GEMINI_API_KEY is set; otherwise falls back
- * to deterministic regex/keyword extraction so the app works without a key.
+ * Uses OpenRouter (e.g. DeepSeek R1) or Gemini API when configured;
+ * otherwise falls back to deterministic regex/keyword extraction.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -140,10 +140,7 @@ function fallbackParse(text: string): ParsedIntake {
   };
 }
 
-// ── Gemini-powered parser ────────────────────────────────────────────────────
-
-async function geminiParse(text: string, apiKey: string): Promise<ParsedIntake> {
-  const prompt = `Extract event planning details from this description and return ONLY valid JSON with these exact fields:
+const PARSE_PROMPT = (text: string) => `Extract event planning details from this description and return ONLY valid JSON with these exact fields:
 {
   "occasion": "<type of event, e.g. wedding, birthday, corporate>",
   "date": "<YYYY-MM-DD if mentioned, else empty string>",
@@ -157,13 +154,55 @@ Description: """${text}"""
 
 Return only the JSON object, no explanation.`;
 
+function extractJsonFromText(raw: string): ParsedIntake {
+  // Strip DeepSeek R1 <think>...</think> reasoning blocks
+  const withoutThinking = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // Strip markdown code fences
+  const withoutFences = withoutThinking.replace(/```(?:json)?\n?/gi, '').replace(/```/g, '').trim();
+  // Extract JSON object if surrounded by other text
+  const jsonMatch = withoutFences.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0] : withoutFences;
+  return JSON.parse(jsonStr) as ParsedIntake;
+}
+
+// ── OpenRouter parser (DeepSeek R1, Llama, etc.) ─────────────────────────────
+
+async function openRouterParse(text: string, apiKey: string, model: string): Promise<ParsedIntake> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'Event Planner',
+    },
+    body: JSON.stringify({
+      model: model || 'deepseek/deepseek-r1',
+      messages: [{ role: 'user', content: PARSE_PROMPT(text) }],
+      temperature: 0.1,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`OpenRouter API error ${res.status}: ${errText}`);
+  }
+
+  const json = await res.json();
+  const rawContent: string = json?.choices?.[0]?.message?.content ?? '{}';
+  return extractJsonFromText(rawContent);
+}
+
+// ── Gemini parser ────────────────────────────────────────────────────────────
+
+async function geminiParse(text: string, apiKey: string): Promise<ParsedIntake> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: PARSE_PROMPT(text) }] }],
         generationConfig: { temperature: 0, maxOutputTokens: 512 },
       }),
     }
@@ -171,12 +210,8 @@ Return only the JSON object, no explanation.`;
 
   if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
   const json = await res.json();
-  const raw: string =
-    json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-
-  // Strip markdown fences if present
-  const cleaned = raw.replace(/```(?:json)?\n?/gi, '').trim();
-  return JSON.parse(cleaned) as ParsedIntake;
+  const raw: string = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  return extractJsonFromText(raw);
 }
 
 // ── Route handler ────────────────────────────────────────────────────────────
@@ -190,17 +225,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No text provided.' }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    let parsed: ParsedIntake;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const openRouterModel = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-r1';
+    const geminiKey = process.env.GEMINI_API_KEY;
 
-    if (apiKey) {
+    let parsed: ParsedIntake | null = null;
+
+    if (openRouterKey && !openRouterKey.includes('your_key_here')) {
       try {
-        parsed = await geminiParse(text, apiKey);
-      } catch {
-        // Fallback to regex parser on Gemini error
-        parsed = fallbackParse(text);
+        parsed = await openRouterParse(text, openRouterKey, openRouterModel);
+      } catch (err) {
+        console.warn('OpenRouter parse failed, falling back:', err);
       }
-    } else {
+    }
+
+    if (!parsed && geminiKey) {
+      try {
+        parsed = await geminiParse(text, geminiKey);
+      } catch (err) {
+        console.warn('Gemini parse failed, falling back:', err);
+      }
+    }
+
+    if (!parsed) {
       parsed = fallbackParse(text);
     }
 

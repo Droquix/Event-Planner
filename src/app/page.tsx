@@ -1,379 +1,158 @@
+/**
+ * Event Planner — single-page app with 4 tabs.
+ * All state lives in React only (no database, no server state).
+ */
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import {
-  createBudgetPlan,
-  recalculate,
-  ALL_CATEGORIES,
-  type BudgetPlan,
-  type BudgetDifference,
-} from '../lib/budget';
-import {
-  buildWeddingTimelineWithFeasibility,
-  cancelVendorTask,
-  type Task,
-} from '../lib/timeline';
+import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { EventSetup } from '../components/OnboardingTab';
 
-export default function HomePage() {
-  // Budget State
-  const [totalBudget, setTotalBudget] = useState<number>(1000000);
-  const [guestCount, setGuestCount] = useState<number>(100);
-  const [occasion, setOccasion] = useState<string>('wedding');
-  const [prioritiesText, setPrioritiesText] = useState<string>('food, photography, decor');
+// Lazy-load heavy tabs to keep initial bundle small
+const OnboardingTab = dynamic(() => import('../components/OnboardingTab'), { ssr: false });
+const BudgetTab     = dynamic(() => import('../components/BudgetTab'),     { ssr: false });
+const TimelineTab   = dynamic(() => import('../components/TimelineTab'),   { ssr: false });
+const VendorsTab    = dynamic(() => import('../components/VendorsTab'),    { ssr: false });
 
-  const [activePlan, setActivePlan] = useState<BudgetPlan>(() => {
-    return createBudgetPlan({
-      totalBudget: 1000000,
-      guestCount: 100,
-      occasion: 'wedding',
-      priorities: ['food', 'photography', 'decor'],
-    });
-  });
+type TabId = 'onboarding' | 'budget' | 'timeline' | 'vendors';
 
-  const [differences, setDifferences] = useState<BudgetDifference[]>([]);
-  const [budgetError, setBudgetError] = useState<string | null>(null);
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'onboarding', label: 'Onboarding',  icon: '📋' },
+  { id: 'budget',     label: 'Budget',      icon: '💰' },
+  { id: 'timeline',   label: 'Timeline',    icon: '📅' },
+  { id: 'vendors',    label: 'Vendors',     icon: '🤝' },
+];
 
-  // Timeline State
-  const [eventDate, setEventDate] = useState<string>('2026-12-31');
-  const [todayReference, setTodayReference] = useState<string>(
-    () => new Date().toISOString().split('T')[0]
-  );
+const EMPTY_SETUP: EventSetup = {
+  occasion: '',
+  date: '',
+  budget: '',
+  guestCount: '',
+  city: '',
+  priorities: [],
+};
 
-  const initialTimelineResult = useMemo(() => {
-    return buildWeddingTimelineWithFeasibility('2026-12-31', undefined, todayReference);
-  }, [todayReference]);
+export default function Page() {
+  const [active, setActive] = useState<TabId>('onboarding');
+  const [setup, setSetup] = useState<EventSetup>(EMPTY_SETUP);
 
-  const [tasks, setTasks] = useState<Task[]>(initialTimelineResult.tasks);
-  const [timelineWarnings, setTimelineWarnings] = useState<string[]>(
-    initialTimelineResult.warnings
-  );
-
-  // Handle Budget Plan Creation
-  const handleGeneratePlan = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setBudgetError(null);
-      const prioList = prioritiesText
-        .split(',')
-        .map((p) => p.trim())
-        .filter(Boolean);
-
-      const newPlan = createBudgetPlan({
-        totalBudget,
-        guestCount,
-        occasion,
-        priorities: prioList,
-      });
-
-      setActivePlan(newPlan);
-      setDifferences([]);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setBudgetError(err.message);
-      }
-    }
-  };
-
-  // Handle Recalculate
-  const handleRecalculate = (newBudgetVal?: number, newGuestsVal?: number) => {
-    try {
-      setBudgetError(null);
-      const changes = {
-        totalBudget: newBudgetVal ?? totalBudget,
-        guestCount: newGuestsVal ?? guestCount,
-      };
-
-      const result = recalculate(activePlan, changes);
-      setActivePlan(result.plan);
-      setDifferences(result.differences);
-      if (newBudgetVal !== undefined) setTotalBudget(newBudgetVal);
-      if (newGuestsVal !== undefined) setGuestCount(newGuestsVal);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setBudgetError(err.message);
-      }
-    }
-  };
-
-  // Handle Timeline Update
-  const handleUpdateTimeline = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = buildWeddingTimelineWithFeasibility(eventDate, undefined, todayReference);
-      setTasks(res.tasks);
-      setTimelineWarnings(res.warnings);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        alert(err.message);
-      }
-    }
-  };
-
-  // Handle Cancel Vendor
-  const handleCancelTask = (taskId: string) => {
-    try {
-      const updated = cancelVendorTask(tasks, taskId);
-      setTasks(updated);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        alert(err.message);
-      }
-    }
-  };
+  function handleReady() { setActive('budget'); }
 
   return (
-    <div className="container">
-      <header className="header">
-        <h1>Event Planner</h1>
-        <p>Intelligent Indian Wedding & Event Budgeting with Dependency-Aware Timelines</p>
-      </header>
+    <>
+      {/* Skip to main content link for keyboard users */}
+      <a
+        href="#main-content"
+        style={{
+          position: 'absolute', left: '-9999px', top: 4, zIndex: 9999,
+          background: '#0ea5e9', color: '#fff', padding: '8px 16px', borderRadius: 6,
+          fontWeight: 700, fontSize: 14,
+        }}
+        onFocus={(e) => (e.currentTarget.style.left = '4px')}
+        onBlur={(e)  => (e.currentTarget.style.left = '-9999px')}
+      >
+        Skip to main content
+      </a>
 
-      <div className="grid-cols-2">
-        {/* Left Column: Budget Planner */}
-        <section className="card">
-          <div className="card-title">
-            <span>Budget Engine (INR)</span>
-            <span className="badge badge-fixed">
-              Total: ₹{activePlan.totalBudget.toLocaleString('en-IN')}
-            </span>
+      <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f8fafc' }}>
+        {/* App header */}
+        <header
+          style={{
+            background: '#1e293b',
+            borderBottom: '1px solid #334155',
+            padding: '0 24px',
+          }}
+        >
+          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0 0' }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+                🎉 Event Planner
+              </h1>
+              {setup.occasion && (
+                <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
+                  {setup.occasion.charAt(0).toUpperCase() + setup.occasion.slice(1)}
+                  {setup.city ? ` · ${setup.city}` : ''}
+                  {setup.date ? ` · ${setup.date}` : ''}
+                </p>
+              )}
+            </div>
+
+            {/* Tab navigation */}
+            <nav
+              role="tablist"
+              aria-label="Main sections"
+              style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}
+            >
+              {TABS.map(({ id, label, icon }) => {
+                const isCurrent = active === id;
+                return (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={isCurrent}
+                    aria-controls={`panel-${id}`}
+                    id={`tab-${id}`}
+                    onClick={() => setActive(id)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: isCurrent ? '3px solid #38bdf8' : '3px solid transparent',
+                      padding: '10px 16px',
+                      color: isCurrent ? '#38bdf8' : '#94a3b8',
+                      fontWeight: isCurrent ? 700 : 400,
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'color 0.15s, border-color 0.15s',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onKeyDown={(e) => {
+                      const ids = TABS.map((t) => t.id);
+                      const idx = ids.indexOf(id);
+                      if (e.key === 'ArrowRight') { setActive(ids[(idx + 1) % ids.length]); e.preventDefault(); }
+                      if (e.key === 'ArrowLeft')  { setActive(ids[(idx - 1 + ids.length) % ids.length]); e.preventDefault(); }
+                    }}
+                  >
+                    <span aria-hidden>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
+        </header>
 
-          {budgetError && <div className="alert alert-warning">{budgetError}</div>}
-          {activePlan.warnings?.map((w, i) => (
-            <div key={i} className="alert alert-warning">
-              {w}
+        {/* Main content */}
+        <main
+          id="main-content"
+          style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 16px 60px' }}
+        >
+          {/* Each panel is always mounted but hidden — preserves state */}
+          {TABS.map(({ id }) => (
+            <div
+              key={id}
+              id={`panel-${id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${id}`}
+              hidden={active !== id}
+              tabIndex={0}
+            >
+              {id === 'onboarding' && (
+                <OnboardingTab
+                  setup={setup}
+                  onSetupChange={setSetup}
+                  onReady={handleReady}
+                />
+              )}
+              {id === 'budget' && <BudgetTab setup={setup} />}
+              {id === 'timeline' && <TimelineTab setup={setup} />}
+              {id === 'vendors' && <VendorsTab />}
             </div>
           ))}
-
-          <form onSubmit={handleGeneratePlan} style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div className="form-group">
-                <label>Total Budget (₹)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={totalBudget}
-                  onChange={(e) => setTotalBudget(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Guest Count</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={guestCount}
-                  onChange={(e) => setGuestCount(Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Priorities (comma-separated: food, photography, decor, etc.)</label>
-              <input
-                type="text"
-                className="form-input"
-                value={prioritiesText}
-                onChange={(e) => setPrioritiesText(e.target.value)}
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Create / Reset Plan
-            </button>
-          </form>
-
-          {/* Quick Recalculate Actions */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              Quick Recalculation Tests:
-            </label>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                className="btn"
-                style={{ background: '#334155', color: '#fff', fontSize: '0.8rem' }}
-                onClick={() => handleRecalculate(undefined, guestCount + 50)}
-              >
-                +50 Guests
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{ background: '#334155', color: '#fff', fontSize: '0.8rem' }}
-                onClick={() => handleRecalculate(undefined, Math.max(1, guestCount - 30))}
-              >
-                -30 Guests (Surplus)
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{ background: '#334155', color: '#fff', fontSize: '0.8rem' }}
-                onClick={() => handleRecalculate(Math.round(totalBudget * 0.7), undefined)}
-              >
-                -30% Budget Cut
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{ background: '#334155', color: '#fff', fontSize: '0.8rem' }}
-                onClick={() => handleRecalculate(Math.round(totalBudget * 0.1), undefined)}
-              >
-                -90% Budget Cut
-              </button>
-            </div>
-          </div>
-
-          {/* Surplus Display if Present */}
-          {activePlan.surplus !== undefined && activePlan.surplus > 0 && (
-            <div className="alert alert-info">
-              <strong>Unallocated Surplus:</strong> ₹{activePlan.surplus.toLocaleString('en-IN')}
-            </div>
-          )}
-
-          {/* Allocations Breakdown */}
-          <div style={{ marginTop: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-              Category Allocations (3% Floor Enforced)
-            </h3>
-            {ALL_CATEGORIES.map((cat) => {
-              const alloc = activePlan.allocations[cat];
-              return (
-                <div key={cat} className="category-row">
-                  <div>
-                    <span className="category-name">{cat}</span>{' '}
-                    <span
-                      className={`badge ${
-                        alloc.costType === 'per-guest' ? 'badge-per-guest' : 'badge-fixed'
-                      }`}
-                    >
-                      {alloc.costType}
-                    </span>
-                    {alloc.costType === 'per-guest' && alloc.perGuestAmount && (
-                      <div className="category-subtext">
-                        ₹{alloc.perGuestAmount.toLocaleString('en-IN')} / guest
-                      </div>
-                    )}
-                  </div>
-                  <div className="category-stats">
-                    <div className="category-amount">
-                      ₹{alloc.amount.toLocaleString('en-IN')}
-                    </div>
-                    <div className="category-subtext">{alloc.percentage}%</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Differences List */}
-          {differences.length > 0 && (
-            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: 'var(--accent-amber)' }}>
-                Recalculation Differences ({differences.length})
-              </h3>
-              {differences.map((diff, index) => (
-                <div key={index} style={{ fontSize: '0.85rem', marginBottom: '0.6rem', color: '#cbd5e1' }}>
-                  <strong>[{diff.category.toUpperCase()}]:</strong> {diff.reason}
-                  {diff.suggestedUse && (
-                    <div style={{ color: 'var(--accent-blue)', marginTop: '0.2rem' }}>
-                      💡 <em>Suggested Use:</em> {diff.suggestedUse}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Right Column: Timeline & Dependency Scheduler */}
-        <section className="card">
-          <div className="card-title">
-            <span>Timeline & Feasibility</span>
-            <span className="badge badge-fixed">Topologically Sorted</span>
-          </div>
-
-          <form onSubmit={handleUpdateTimeline} style={{ marginBottom: '1.25rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div className="form-group">
-                <label>Event Date</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Today (Reference Date)</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={todayReference}
-                  onChange={(e) => setTodayReference(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Recalculate Deadlines & Feasibility
-            </button>
-          </form>
-
-          {/* Overdue Warnings */}
-          {timelineWarnings.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-rose)', marginBottom: '0.5rem' }}>
-                ⚠️ Feasibility Warnings ({timelineWarnings.length})
-              </h4>
-              {timelineWarnings.map((warn, i) => (
-                <div key={i} className="alert alert-warning" style={{ padding: '0.6rem 0.8rem', fontSize: '0.8rem' }}>
-                  {warn}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Task List */}
-          <div>
-            <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-              Execution Order ({tasks.length} Tasks)
-            </h3>
-            {tasks.map((task, idx) => (
-              <div key={task.id} className={`task-item status-${task.status}`}>
-                <div className="task-header">
-                  <div>
-                    <span style={{ fontWeight: 700, marginRight: '0.5rem' }}>
-                      {idx + 1}. {task.name}
-                    </span>
-                    <span className={`badge badge-${task.status}`}>{task.status}</span>
-                  </div>
-
-                  {task.status !== 'cancelled' && (
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }}
-                      onClick={() => handleCancelTask(task.id)}
-                    >
-                      Cancel Vendor
-                    </button>
-                  )}
-                </div>
-
-                <div className="task-meta">
-                  <span>📅 Deadline: {task.deadline}</span>
-                  <span>⏳ Lead time: {task.daysBeforeEvent} days</span>
-                  {task.dependsOn.length > 0 && (
-                    <span>🔗 Depends on: {task.dependsOn.join(', ')}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        </main>
       </div>
-    </div>
+    </>
   );
 }

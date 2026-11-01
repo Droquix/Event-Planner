@@ -82,6 +82,8 @@ export const BudgetSlidersCard: React.FC<BudgetSlidersCardProps> = ({
             min={1}
             value={budget}
             onChange={(e) => onBudgetChange(e.target.value)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'adj-budget-error' : undefined}
             style={{
               background: '#070d19',
               border: '1px solid #1e293b',
@@ -90,6 +92,7 @@ export const BudgetSlidersCard: React.FC<BudgetSlidersCardProps> = ({
               color: '#f8fafc',
               fontSize: 13,
               outline: 'none',
+              minHeight: 44,
             }}
             onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
             onBlur={(e) => (e.target.style.borderColor = '#1e293b')}
@@ -109,7 +112,10 @@ export const BudgetSlidersCard: React.FC<BudgetSlidersCardProps> = ({
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'background 0.15s ease',
-            height: 40,
+            minHeight: 44,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
@@ -119,7 +125,11 @@ export const BudgetSlidersCard: React.FC<BudgetSlidersCardProps> = ({
       </div>
 
       {error && (
-        <p role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
+        <p
+          id="adj-budget-error"
+          role="alert"
+          style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}
+        >
           {error}
         </p>
       )}

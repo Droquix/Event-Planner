@@ -156,12 +156,18 @@ export default function Page() {
                     aria-selected={isCurrent}
                     aria-controls={`panel-${id}`}
                     id={`tab-${id}`}
+                    tabIndex={isCurrent ? 0 : -1}
                     onClick={() => setActive(id)}
                     style={{
                       background: isCurrent ? '#1c2a47' : 'transparent',
                       border: 'none',
                       borderRadius: 9999,
-                      padding: '5px 14px',
+                      padding: '8px 16px',
+                      minHeight: 44,
+                      minWidth: 44,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       color: isCurrent ? '#ffffff' : '#94a3b8',
                       fontWeight: isCurrent ? 600 : 500,
                       fontSize: 12,
@@ -172,13 +178,20 @@ export default function Page() {
                     onKeyDown={(e) => {
                       const ids = TABS.map((t) => t.id);
                       const idx = ids.indexOf(id);
+                      let nextId: TabId | null = null;
                       if (e.key === 'ArrowRight') {
-                        setActive(ids[(idx + 1) % ids.length]);
-                        e.preventDefault();
+                        nextId = ids[(idx + 1) % ids.length];
+                      } else if (e.key === 'ArrowLeft') {
+                        nextId = ids[(idx - 1 + ids.length) % ids.length];
+                      } else if (e.key === 'Home') {
+                        nextId = ids[0];
+                      } else if (e.key === 'End') {
+                        nextId = ids[ids.length - 1];
                       }
-                      if (e.key === 'ArrowLeft') {
-                        setActive(ids[(idx - 1 + ids.length) % ids.length]);
+                      if (nextId) {
                         e.preventDefault();
+                        setActive(nextId);
+                        document.getElementById(`tab-${nextId}`)?.focus();
                       }
                     }}
                   >
@@ -199,11 +212,15 @@ export default function Page() {
                   color: '#94a3b8',
                   border: '1px solid #1e293b',
                   borderRadius: 10,
-                  padding: '7px 14px',
+                  padding: '10px 16px',
+                  minHeight: 44,
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = '#f8fafc';
@@ -224,17 +241,37 @@ export default function Page() {
                   color: '#070d19',
                   border: 'none',
                   borderRadius: 10,
-                  padding: '7px 16px',
+                  padding: '10px 18px',
+                  minHeight: 44,
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'background 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
               >
                 {savedBanner ? '✓ Plan saved!' : 'Save plan'}
               </button>
+              <div
+                aria-live="polite"
+                className="sr-only"
+                style={{
+                  position: 'absolute',
+                  width: 1,
+                  height: 1,
+                  padding: 0,
+                  margin: -1,
+                  overflow: 'hidden',
+                  clip: 'rect(0, 0, 0, 0)',
+                  border: 0,
+                }}
+              >
+                {savedBanner ? 'Plan saved successfully' : ''}
+              </div>
             </div>
           </header>
 

@@ -72,7 +72,9 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
           }}
           onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
           onBlur={(e) => (e.target.style.borderColor = '#1e293b')}
-          aria-describedby="intake-help"
+          aria-describedby={parseError ? 'intake-error intake-help' : 'intake-help'}
+          aria-invalid={Boolean(parseError)}
+          aria-busy={parsing}
         />
         <span
           id="intake-help"
@@ -82,7 +84,11 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
         </span>
 
         {parseError && (
-          <p role="alert" style={{ color: '#fca5a5', fontSize: 12, marginBottom: 12 }}>
+          <p
+            id="intake-error"
+            role="alert"
+            style={{ color: '#fca5a5', fontSize: 12, marginBottom: 12 }}
+          >
             {parseError}
           </p>
         )}
@@ -97,7 +103,8 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
               color: '#070d19',
               border: 'none',
               borderRadius: 8,
-              padding: '8px 18px',
+              padding: '10px 18px',
+              minHeight: 44,
               fontSize: 12,
               fontWeight: 700,
               cursor: parsing || !text.trim() ? 'not-allowed' : 'pointer',
@@ -121,11 +128,14 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
               color: '#94a3b8',
               border: '1px solid #1e293b',
               borderRadius: 8,
-              padding: '8px 14px',
+              padding: '10px 16px',
+              minHeight: 44,
               fontSize: 12,
               fontWeight: 500,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#f8fafc';

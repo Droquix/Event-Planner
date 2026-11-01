@@ -81,6 +81,8 @@ export const VendorQuoteForm: React.FC<VendorQuoteFormProps> = ({
               placeholder="e.g. Regal Banquets"
               value={form.name}
               onChange={(e) => onFormChange('name', e.target.value)}
+              aria-invalid={Boolean(formError)}
+              aria-describedby={formError ? 'vendor-form-error' : undefined}
               style={inputStyle}
             />
           </div>
@@ -103,6 +105,8 @@ export const VendorQuoteForm: React.FC<VendorQuoteFormProps> = ({
               id="vendor-cat-select"
               value={form.category}
               onChange={(e) => onFormChange('category', e.target.value)}
+              aria-invalid={Boolean(formError)}
+              aria-describedby={formError ? 'vendor-form-error' : undefined}
               style={{
                 ...inputStyle,
                 appearance: 'none',
@@ -144,6 +148,8 @@ export const VendorQuoteForm: React.FC<VendorQuoteFormProps> = ({
               placeholder="e.g. 450000"
               value={form.price}
               onChange={(e) => onFormChange('price', e.target.value)}
+              aria-invalid={Boolean(formError)}
+              aria-describedby={formError ? 'vendor-form-error' : undefined}
               style={inputStyle}
             />
           </div>
@@ -169,6 +175,7 @@ export const VendorQuoteForm: React.FC<VendorQuoteFormProps> = ({
 
         {formError && (
           <div
+            id="vendor-form-error"
             role="alert"
             style={{
               color: '#f87171',
@@ -206,11 +213,13 @@ export const VendorQuoteForm: React.FC<VendorQuoteFormProps> = ({
               fontWeight: 600,
               fontSize: 13,
               borderRadius: 8,
-              padding: '8px 18px',
+              padding: '10px 20px',
+              minHeight: 44,
               border: 'none',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 6,
               transition: 'background 0.15s ease',
             }}

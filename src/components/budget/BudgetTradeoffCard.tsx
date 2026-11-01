@@ -38,6 +38,8 @@ export const BudgetTradeoffCard: React.FC<BudgetTradeoffCardProps> = ({
 
       {(explainLoading || aiExplanation) && (
         <div
+          aria-live="polite"
+          aria-busy={explainLoading}
           style={{
             background: '#070d19',
             border: '1px solid #1e293b',

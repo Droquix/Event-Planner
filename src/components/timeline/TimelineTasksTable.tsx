@@ -67,7 +67,7 @@ export const TimelineTasksTable: React.FC<TimelineTasksTableProps> = ({
       >
         <thead>
           <tr>
-            {['# TASK', 'DEADLINE', 'LEAD TIME', 'DEPENDS ON', 'STATUS', ''].map((h, i) => (
+            {['# TASK', 'DEADLINE', 'LEAD TIME', 'DEPENDS ON', 'STATUS', 'ACTION'].map((h, i) => (
               <th
                 key={i}
                 scope="col"

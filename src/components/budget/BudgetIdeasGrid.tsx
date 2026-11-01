@@ -64,12 +64,15 @@ export const BudgetIdeasGrid: React.FC<BudgetIdeasGridProps> = ({
               color: '#070d19',
               border: 'none',
               borderRadius: 8,
-              padding: '6px 14px',
+              padding: '10px 16px',
+              minHeight: 44,
               fontSize: 12,
               fontWeight: 700,
               cursor: ideasLoading ? 'not-allowed' : 'pointer',
               opacity: ideasLoading ? 0.5 : 1,
               transition: 'background 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
@@ -80,13 +83,20 @@ export const BudgetIdeasGrid: React.FC<BudgetIdeasGridProps> = ({
       </div>
 
       {ideasLoading && (
-        <div style={{ padding: '24px 0', textAlign: 'center', color: '#93c5fd', fontSize: 13 }}>
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          style={{ padding: '24px 0', textAlign: 'center', color: '#93c5fd', fontSize: 13 }}
+        >
           ⏳ Consulting AI model for personalized event ideas...
         </div>
       )}
 
       {!ideasLoading && ideas.length > 0 && (
         <div
+          aria-live="polite"
+          aria-busy="false"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',

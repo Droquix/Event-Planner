@@ -171,6 +171,8 @@ export const VendorQuoteCard: React.FC<VendorQuoteCardProps> = ({
       {/* Rendered drafted message */}
       {draft && (
         <div
+          aria-live="polite"
+          aria-busy={isDrafting}
           style={{
             marginTop: 12,
             background: '#070d19',

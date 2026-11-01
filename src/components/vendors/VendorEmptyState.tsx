@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { InboxIcon } from '../icons';
 
 export const VendorEmptyState: React.FC = () => {
   const [showGuideModal, setShowGuideModal] = useState(false);
+
+  useEffect(() => {
+    if (!showGuideModal) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowGuideModal(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showGuideModal]);
 
   return (
     <Card
@@ -50,16 +61,21 @@ export const VendorEmptyState: React.FC = () => {
       <button
         type="button"
         onClick={() => setShowGuideModal((prev) => !prev)}
+        aria-expanded={showGuideModal}
         style={{
           background: '#131c31',
           border: '1px solid #1e293b',
           borderRadius: 8,
-          padding: '8px 18px',
+          padding: '10px 18px',
+          minHeight: 44,
           color: '#f8fafc',
           fontSize: 12,
           fontWeight: 600,
           cursor: 'pointer',
           transition: 'background 0.15s ease',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
         onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#131c31')}
@@ -69,6 +85,8 @@ export const VendorEmptyState: React.FC = () => {
 
       {showGuideModal && (
         <div
+          role="region"
+          aria-label="Vendor Management Guide"
           style={{
             marginTop: 20,
             maxWidth: 440,

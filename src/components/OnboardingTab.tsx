@@ -126,7 +126,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
         <h2
           style={{
             fontSize: 38,
-            fontWeight: 800,
+            fontWeight: 600,
             color: '#ffffff',
             lineHeight: 1.18,
             letterSpacing: '-0.02em',

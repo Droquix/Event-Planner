@@ -101,7 +101,7 @@ export default function TimelineTab({ setup }: Props) {
           <h2
             style={{
               fontSize: 32,
-              fontWeight: 800,
+              fontWeight: 600,
               color: '#ffffff',
               letterSpacing: '-0.02em',
               lineHeight: 1.2,

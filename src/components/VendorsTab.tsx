@@ -1,13 +1,20 @@
+'use client';
+
 import React, { useState } from 'react';
-import { BudgetCategory } from '../lib/budget';
+import type { BudgetCategory } from '../lib/budget';
 import { useAbortableRequest } from '../hooks/useAbortableRequest';
-import { VendorQuote, REQUIRED_CHECKLIST, CAT_LABELS, CATEGORIES } from './vendors/types';
+import {
+  type VendorQuote,
+  REQUIRED_CHECKLIST,
+  CATEGORIES,
+} from './vendors/types';
 import { VendorQuoteForm } from './vendors/VendorQuoteForm';
 import { VendorQuoteCard } from './vendors/VendorQuoteCard';
 import { VendorComparisonTable } from './vendors/VendorComparisonTable';
 import { VendorEmptyState } from './vendors/VendorEmptyState';
+import { VendorFilterBar } from './vendors/VendorFilterBar';
 
-function makeId() {
+function makeId(): string {
   return `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
@@ -100,18 +107,17 @@ export default function VendorsTab() {
 
   async function handleDraftMessage(vendor: VendorQuote, missing: string[]) {
     setDraftingVendorId(vendor.id);
-    const result = await draftRequest.execute({
+    const json = await draftRequest.execute({
       category: vendor.category,
       missingInfo: missing,
       vendorName: vendor.name,
       vendorId: vendor.id,
     });
     setDraftingVendorId(null);
-
-    if (result?.data?.message) {
+    if (json?.data?.message) {
       setVendorDrafts((prev) => ({
         ...prev,
-        [vendor.id]: { message: result.data!.message, demo: !!result.demo },
+        [vendor.id]: { message: json.data?.message ?? '', demo: json.demo ?? false },
       }));
     }
   }
@@ -175,7 +181,6 @@ export default function VendorsTab() {
         </p>
       </div>
 
-      {/* Add a vendor quote form */}
       <VendorQuoteForm
         form={form}
         formError={formError}
@@ -183,51 +188,16 @@ export default function VendorsTab() {
         onSubmit={handleAdd}
       />
 
-      {/* Vendors list or empty state */}
       {vendors.length === 0 ? (
         <VendorEmptyState />
       ) : (
         <>
-          {/* Filter Bar */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setFilterCat('all')}
-              style={{
-                background: filterCat === 'all' ? '#1c2a47' : '#0d1527',
-                border: '1px solid #182235',
-                borderRadius: 9999,
-                padding: '4px 14px',
-                color: filterCat === 'all' ? '#ffffff' : '#94a3b8',
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              All
-            </button>
-            {CATEGORIES.filter((c) => byCategory[c].length > 0).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setFilterCat(c)}
-                style={{
-                  background: filterCat === c ? '#1c2a47' : '#0d1527',
-                  border: '1px solid #182235',
-                  borderRadius: 9999,
-                  padding: '4px 14px',
-                  color: filterCat === c ? '#ffffff' : '#94a3b8',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                {CAT_LABELS[c]}
-              </button>
-            ))}
-          </div>
+          <VendorFilterBar
+            filterCat={filterCat}
+            byCategory={byCategory}
+            onSelectCategory={setFilterCat}
+          />
 
-          {/* Vendor Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {filteredVendors.map((v) => (
               <VendorQuoteCard
@@ -244,35 +214,11 @@ export default function VendorsTab() {
             ))}
           </div>
 
-          {/* 1-Vendor Guidance Notice */}
-          {CATEGORIES.filter((c) => byCategory[c].length === 1).map((cat) => (
-            <div
-              key={`single-${cat}`}
-              style={{
-                background: 'rgba(30, 41, 59, 0.4)',
-                border: '1px dashed #334155',
-                borderRadius: 12,
-                padding: '12px 18px',
-                fontSize: 12,
-                color: '#94a3b8',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>💡</span>
-              <span>
-                You have 1 quote in <strong>{CAT_LABELS[cat]}</strong> ({byCategory[cat][0]?.name}).
-                Add at least 1 more quote in this category to unlock side-by-side comparison &
-                lowest-bid highlights.
-              </span>
-            </div>
-          ))}
-
-          {/* Comparison tables */}
-          {CATEGORIES.filter((c) => byCategory[c].length > 1).map((cat) => (
-            <VendorComparisonTable key={cat} category={cat} vendors={byCategory[cat]} />
-          ))}
+          {CATEGORIES.map((cat) => {
+            const catVendors = byCategory[cat];
+            if (catVendors.length < 2) return null;
+            return <VendorComparisonTable key={cat} category={cat} vendors={catVendors} />;
+          })}
         </>
       )}
     </div>

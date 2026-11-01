@@ -74,6 +74,25 @@ Hope this helps!`;
       const parsed = JSON.parse(cleaned);
       expect(parsed).toEqual({ name: 'Corporate Gala', budget: 750000 });
     });
+
+    it('extracts top-level arrays correctly when brackets precede braces', () => {
+      const raw = `Here are items:
+[
+  { "name": "Item A", "budget": 100 },
+  { "name": "Item B", "budget": 200 }
+]`;
+      const cleaned = cleanAIResponse(raw);
+      expect(cleaned.startsWith('[')).toBe(true);
+      expect(cleaned.endsWith(']')).toBe(true);
+      const parsed = JSON.parse(cleaned);
+      expect(parsed).toHaveLength(2);
+    });
+
+    it('extracts bracketed lists with no braces', () => {
+      const raw = `Results: ["food", "decor", "music"]`;
+      const cleaned = cleanAIResponse(raw);
+      expect(cleaned).toBe('["food", "decor", "music"]');
+    });
   });
 
   // ── 2. Valid response handling ───────────────────────────────────────────────
@@ -92,12 +111,22 @@ Hope this helps!`;
     });
 
     const result = await callAI({
+      systemPrompt: 'You are an event planner assistant.',
       userPrompt: 'Test event',
       schema: TestSchema,
       demoFallback: demoData,
     });
 
     expect(result.demo).toBe(false);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          { role: 'system', content: 'You are an event planner assistant.' },
+          { role: 'user', content: 'Test event' },
+        ],
+      }),
+      expect.anything()
+    );
     expect(result.data).toEqual({ name: 'Valid Event', budget: 250000 });
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
@@ -121,12 +150,22 @@ Hope this helps!`;
     });
 
     const result = await callAI({
+      systemPrompt: 'You are an event planner assistant.',
       userPrompt: 'Test event',
       schema: TestSchema,
       demoFallback: demoData,
     });
 
     expect(result.demo).toBe(false);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          { role: 'system', content: 'You are an event planner assistant.' },
+          { role: 'user', content: 'Test event' },
+        ],
+      }),
+      expect.anything()
+    );
     expect(result.data).toEqual({ name: 'Thinker Wedding', budget: 800000 });
   });
 

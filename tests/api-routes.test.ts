@@ -65,12 +65,61 @@ describe('API Route Validation & Security (Phase 4)', () => {
       expect(json.data.explanation).toMatch(/No budget changes detected/i);
     });
 
+    it('returns 200 and generates realistic explanation for differences in demo mode', async () => {
+      delete process.env.OPENROUTER_API_KEY;
+      const differences = [
+        {
+          category: 'venue',
+          oldAmount: 500000,
+          newAmount: 420000,
+          reason: 'Reallocated to catering based on increased guest count.',
+        },
+        {
+          category: 'catering',
+          oldAmount: 600000,
+          newAmount: 680000,
+          reason: 'Scaled catering to cover 250 guests.',
+        },
+      ];
+      const req = makeReq('/api/explain-changes', { differences });
+      const res = await explainChangesRoute(req);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.demo).toBe(true);
+      expect(json.data.explanation).toContain('venue');
+      expect(json.data.explanation).toContain('₹5,00,000');
+    });
+
     it('returns 400 on malformed differences schema', async () => {
       const req = makeReq('/api/explain-changes', {
         differences: [{ category: 123, oldAmount: 'invalid' }],
       });
       const res = await explainChangesRoute(req);
       expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when payload exceeds maximum size', async () => {
+      const bigPayload = {
+        differences: Array(100).fill({
+          category: 'decor',
+          oldAmount: 1000,
+          newAmount: 2000,
+          reason: 'x'.repeat(250),
+        }),
+      };
+      const req = makeReq('/api/explain-changes', bigPayload);
+      const res = await explainChangesRoute(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toMatch(/too large/i);
+    });
+
+    it('returns 400 on invalid JSON string', async () => {
+      const req = makeReq('/api/explain-changes', '{ not-valid-json:');
+      const res = await explainChangesRoute(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toMatch(/Invalid JSON payload format/i);
     });
   });
 

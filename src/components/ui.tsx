@@ -7,6 +7,9 @@ import React from 'react';
 
 // ── Badges ───────────────────────────────────────────────────────────────────
 
+/**
+ * Renders a color-coded status badge for timeline tasks (OVERDUE, AT RISK, CANCELLED, PENDING).
+ */
 export function StatusBadge({ status }: { status: string }) {
   const norm = status.toLowerCase();
   if (norm === 'overdue') {
@@ -102,6 +105,9 @@ export function StatusBadge({ status }: { status: string }) {
 
 // ── AI Source Badge ─────────────────────────────────────────────────────────
 
+/**
+ * Displays an indicator of the AI execution mode ("Live AI", "Demo mode - sample response", or loading).
+ */
 export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }) {
   if (loading) {
     return (
@@ -167,6 +173,9 @@ export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }
 
 // ── Warning banner ───────────────────────────────────────────────────────────
 
+/**
+ * Accessible warning banner rendering an itemized list of validation or scheduling alerts.
+ */
 export function WarningList({ warnings }: { warnings: string[] }) {
   if (!warnings.length) return null;
   return (
@@ -186,8 +195,19 @@ export function WarningList({ warnings }: { warnings: string[] }) {
       }}
     >
       {warnings.map((w, i) => (
-        <li key={i} style={{ color: '#fda4af', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <span aria-hidden style={{ color: '#f43f5e', fontSize: 14 }}>⚠️</span>
+        <li
+          key={i}
+          style={{
+            color: '#fda4af',
+            fontSize: 13,
+            display: 'flex',
+            gap: 10,
+            alignItems: 'flex-start',
+          }}
+        >
+          <span aria-hidden style={{ color: '#f43f5e', fontSize: 14 }}>
+            ⚠️
+          </span>
           <span style={{ lineHeight: 1.5 }}>{w}</span>
         </li>
       ))}
@@ -203,13 +223,13 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helpText?: string;
 }
 
+/**
+ * Accessible text or number input with integrated label, help text, and focus states.
+ */
 export function Field({ id, label, helpText, style, ...rest }: FieldProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label
-        htmlFor={id}
-        style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}
-      >
+      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>
         {label}
       </label>
       <input
@@ -248,6 +268,9 @@ interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement>
   children: React.ReactNode;
 }
 
+/**
+ * Custom styled dropdown select element with accessible label and custom arrow indicator.
+ */
 export function SelectField({ id, label, children, style, ...rest }: SelectFieldProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -304,6 +327,9 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
 }
 
+/**
+ * Reusable design-system button supporting primary, secondary, danger, ghost, and pill variants.
+ */
 export function Btn({ variant = 'primary', size = 'md', children, style, ...rest }: BtnProps) {
   const [hov, setHov] = React.useState(false);
 
@@ -375,6 +401,9 @@ export function Btn({ variant = 'primary', size = 'md', children, style, ...rest
 
 // ── Card Container ───────────────────────────────────────────────────────────
 
+/**
+ * Standard container card with rounded corners, subtle border, and dark backdrop.
+ */
 export function Card({
   children,
   style,
@@ -400,6 +429,9 @@ export function Card({
 
 // ── Section Heading ──────────────────────────────────────────────────────────
 
+/**
+ * Subheading typography element for standardizing section labels.
+ */
 export function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2
@@ -417,6 +449,9 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
 
 // ── Live region for a11y announcements ───────────────────────────────────────
 
+/**
+ * Visually hidden ARIA live region ensuring screen-reader announcements on dynamic budget updates.
+ */
 export function LiveRegion({ message }: { message: string }) {
   return (
     <div
@@ -440,6 +475,9 @@ export function LiveRegion({ message }: { message: string }) {
 
 // ── Currency formatter ────────────────────────────────────────────────────────
 
+/**
+ * Formats a numeric Indian Rupee value into a standard ₹ symbol string with locale formatting.
+ */
 export function fmt(n: number): string {
   return `₹${Math.round(n).toLocaleString('en-IN')}`;
 }

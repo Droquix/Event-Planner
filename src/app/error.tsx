@@ -57,7 +57,8 @@ export default function ErrorBoundary({
           Something went wrong
         </h2>
         <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 24 }}>
-          We encountered an unexpected problem while rendering this view. Your configuration has been preserved.
+          We encountered an unexpected problem while rendering this view. Your configuration has
+          been preserved.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button

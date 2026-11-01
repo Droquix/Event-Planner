@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
-import { checkRateLimit, getClientIp } from '../../../lib/rate-limit';
+import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';
 
 export const maxDuration = 30;
 
@@ -16,6 +16,12 @@ const QuestionSchema = z.object({
 
 export type VendorQuestionResponse = z.infer<typeof QuestionSchema>;
 
+const InputSchema = z.object({
+  category: z.string().max(50),
+  missingInfo: z.array(z.string().max(100)).max(20).optional(),
+  vendorName: z.string().max(100).optional(),
+});
+
 function generateDemoMessage(category: string, missingInfo: string[], vendorName?: string): string {
   const greeting = vendorName ? `Dear ${vendorName}` : 'Hello';
   const missingText = missingInfo.length ? missingInfo.join(', ') : 'commercial terms';
@@ -24,47 +30,19 @@ function generateDemoMessage(category: string, missingInfo: string[], vendorName
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = getClientIp(req);
-    const { allowed } = checkRateLimit(ip);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please wait a minute before retrying.' },
-        { status: 429 }
-      );
+    const validated = await validateApiRequest(req, InputSchema);
+    if (!validated.success) {
+      return validated.response;
     }
 
-    const rawBody = await req.text();
-    if (rawBody.length > 2000) {
-      return NextResponse.json(
-        { error: 'Input is too long. Please limit to 1000 characters.' },
-        { status: 400 }
-      );
-    }
-
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
-    }
-
-    const InputSchema = z.object({
-      category: z.string().max(50),
-      missingInfo: z.array(z.string().max(100)).max(20).optional(),
-      vendorName: z.string().max(100).optional(),
-    });
-
-    const validation = InputSchema.safeParse(parsedJson);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.issues?.[0]?.message || 'Invalid vendor input.' },
-        { status: 400 }
-      );
-    }
-
-    const category = validation.data.category.trim() || 'services';
-    const missingInfo = validation.data.missingInfo?.filter(Boolean) || [];
-    const vendorName = validation.data.vendorName?.trim() || undefined;
+    const {
+      category: rawCategory,
+      missingInfo: rawMissingInfo,
+      vendorName: rawVendorName,
+    } = validated.payload.data;
+    const category = rawCategory.trim() || 'services';
+    const missingInfo = rawMissingInfo?.filter(Boolean) || [];
+    const vendorName = rawVendorName?.trim() || undefined;
 
     const demoFallback: VendorQuestionResponse = {
       message: generateDemoMessage(category, missingInfo, vendorName),
@@ -96,9 +74,6 @@ Return valid JSON:
 
     return NextResponse.json(result);
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to draft vendor message.' },
-      { status: 500 }
-    );
+    return handleInternalError('draft vendor message');
   }
 }

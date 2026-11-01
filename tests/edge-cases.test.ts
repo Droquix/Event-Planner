@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createBudgetPlan, recalculate } from '../src/lib/budget';
-import {
-  calculateDeadline,
-  buildWeddingTimelineWithFeasibility,
-} from '../src/lib/timeline';
+import { calculateDeadline, buildWeddingTimelineWithFeasibility } from '../src/lib/timeline';
 
 describe('Phase 3 Hidden Bugs & Edge Cases', () => {
   describe('Budget Math & Input Integrity', () => {
@@ -83,7 +80,7 @@ describe('Phase 3 Hidden Bugs & Edge Cases', () => {
 
   describe('Vendor Handling: 0 and 1 Vendor Edge Cases', () => {
     it('handles 0 vendors cleanly without errors', () => {
-      const vendors: any[] = [];
+      const vendors: Array<{ id: string; name: string; category: string; price: number }> = [];
       const venueVendors = vendors.filter((v) => v.category === 'venue');
       expect(venueVendors.length).toBe(0);
       // Comparison requires > 1 vendor
@@ -91,9 +88,7 @@ describe('Phase 3 Hidden Bugs & Edge Cases', () => {
     });
 
     it('requires at least 2 quotes in the same category for comparison table', () => {
-      const singleVendor = [
-        { id: '1', name: 'Grand Hall', category: 'venue', price: 500000 },
-      ];
+      const singleVendor = [{ id: '1', name: 'Grand Hall', category: 'venue', price: 500000 }];
       expect(singleVendor.length > 1).toBe(false);
 
       const twoVendors = [

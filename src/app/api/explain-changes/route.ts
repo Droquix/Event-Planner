@@ -6,10 +6,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
-import { checkRateLimit, getClientIp } from '../../../lib/rate-limit';
+import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';
 import type { BudgetDifference } from '../../../lib/budget';
 
 export const maxDuration = 30;
+
+const DiffItemSchema = z.object({
+  category: z.string().max(50),
+  oldAmount: z.number().nonnegative(),
+  newAmount: z.number().nonnegative(),
+  reason: z.string().max(300),
+});
+
+const InputSchema = z.object({
+  differences: z.array(DiffItemSchema).max(20),
+});
 
 const ExplainSchema = z.object({
   explanation: z.string().min(10),
@@ -22,6 +33,9 @@ function generateDemoExplanation(differences: BudgetDifference[]): string {
     return 'Your budget plan remains balanced with no category changes required.';
   }
   const topDiff = differences[0];
+  if (!topDiff) {
+    return 'Your budget plan remains balanced with no category changes required.';
+  }
   const formattedOld = `₹${topDiff.oldAmount.toLocaleString('en-IN')}`;
   const formattedNew = `₹${topDiff.newAmount.toLocaleString('en-IN')}`;
   return `Adjusted ${topDiff.category} from ${formattedOld} to ${formattedNew} to balance the revised event specifications. Category floors were maintained to keep every essential vendor viable, while protecting your high-priority items. The overall plan remains strictly within your configured budget.`;
@@ -29,50 +43,12 @@ function generateDemoExplanation(differences: BudgetDifference[]): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = getClientIp(req);
-    const { allowed } = checkRateLimit(ip);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please wait a minute before retrying.' },
-        { status: 429 }
-      );
+    const validated = await validateApiRequest(req, InputSchema);
+    if (!validated.success) {
+      return validated.response;
     }
 
-    const rawBody = await req.text();
-    if (rawBody.length > 2000) {
-      return NextResponse.json(
-        { error: 'Input is too long. Please limit to 1000 characters.' },
-        { status: 400 }
-      );
-    }
-
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
-    }
-
-    const DiffItemSchema = z.object({
-      category: z.string().max(50),
-      oldAmount: z.number().nonnegative(),
-      newAmount: z.number().nonnegative(),
-      reason: z.string().max(300),
-    });
-
-    const InputSchema = z.object({
-      differences: z.array(DiffItemSchema).max(20),
-    });
-
-    const validation = InputSchema.safeParse(parsedJson);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.issues?.[0]?.message || 'Invalid differences input.' },
-        { status: 400 }
-      );
-    }
-
-    const differences = validation.data.differences;
+    const differences = validated.payload.data.differences;
     if (!differences.length) {
       return NextResponse.json({
         data: { explanation: 'No budget changes detected.' },
@@ -117,9 +93,6 @@ Return JSON in this format:
 
     return NextResponse.json(result);
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to explain budget changes.' },
-      { status: 500 }
-    );
+    return handleInternalError('explain budget changes');
   }
 }

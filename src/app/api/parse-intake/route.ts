@@ -6,10 +6,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
-import { checkRateLimit, getClientIp } from '../../../lib/rate-limit';
+import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';
+import { MAX_INTAKE_TEXT_LENGTH } from '../../../lib/constants';
 import { ALL_CATEGORIES, normalizeCategory, type BudgetCategory } from '../../../lib/budget';
 
 export const maxDuration = 30;
+
+const BodySchema = z.object({
+  text: z
+    .string()
+    .min(1, 'Please provide event description text.')
+    .max(
+      MAX_INTAKE_TEXT_LENGTH,
+      `Input is too long. Please limit to ${MAX_INTAKE_TEXT_LENGTH} characters.`
+    ),
+});
 
 const IntakeSchema = z.object({
   occasion: z.string().default(''),
@@ -33,49 +44,12 @@ const DEMO_FALLBACK: ParsedIntake = {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = getClientIp(req);
-    const { allowed } = checkRateLimit(ip);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please wait a minute before retrying.' },
-        { status: 429 }
-      );
+    const validated = await validateApiRequest(req, BodySchema);
+    if (!validated.success) {
+      return validated.response;
     }
 
-    const rawBody = await req.text();
-    if (rawBody.length > 2000) {
-      return NextResponse.json(
-        { error: 'Input is too long. Please limit to 1000 characters.' },
-        { status: 400 }
-      );
-    }
-
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON payload.' },
-        { status: 400 }
-      );
-    }
-
-    const BodySchema = z.object({
-      text: z
-        .string()
-        .min(1, 'Please provide event description text.')
-        .max(1000, 'Input is too long. Please limit to 1000 characters.'),
-    });
-
-    const parsedBody = BodySchema.safeParse(parsedJson);
-    if (!parsedBody.success) {
-      return NextResponse.json(
-        { error: parsedBody.error.issues?.[0]?.message || 'Invalid input.' },
-        { status: 400 }
-      );
-    }
-
-    const text = parsedBody.data.text.trim();
+    const text = validated.payload.data.text.trim();
 
     const userPrompt = `Extract event planning details from this description into structured JSON:
 <user_event_brief>
@@ -104,7 +78,11 @@ Return JSON matching:
     const validatedPriorities: BudgetCategory[] = [];
     for (const p of result.data.priorities) {
       const normalized = normalizeCategory(p);
-      if (normalized && ALL_CATEGORIES.includes(normalized) && !validatedPriorities.includes(normalized)) {
+      if (
+        normalized &&
+        ALL_CATEGORIES.includes(normalized) &&
+        !validatedPriorities.includes(normalized)
+      ) {
         validatedPriorities.push(normalized);
       }
     }
@@ -117,9 +95,6 @@ Return JSON matching:
       demo: result.demo,
     });
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to process request. Please try again.' },
-      { status: 500 }
-    );
+    return handleInternalError('parse event brief');
   }
 }

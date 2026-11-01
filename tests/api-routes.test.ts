@@ -16,7 +16,7 @@ describe('API Route Validation & Security (Phase 4)', () => {
     process.env = originalEnv;
   });
 
-  function makeReq(url: string, body: any): NextRequest {
+  function makeReq(url: string, body: unknown): NextRequest {
     return new NextRequest(new URL(url, 'http://localhost:3000'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,9 @@ describe('API Route Validation & Security (Phase 4)', () => {
     });
 
     it('returns 400 on malformed differences schema', async () => {
-      const req = makeReq('/api/explain-changes', { differences: [{ category: 123, oldAmount: 'invalid' }] });
+      const req = makeReq('/api/explain-changes', {
+        differences: [{ category: 123, oldAmount: 'invalid' }],
+      });
       const res = await explainChangesRoute(req);
       expect(res.status).toBe(400);
     });

@@ -4,12 +4,7 @@
  */
 
 export type BudgetCategory =
-  | 'venue'
-  | 'catering'
-  | 'decor'
-  | 'photography'
-  | 'entertainment'
-  | 'misc';
+  'venue' | 'catering' | 'decor' | 'photography' | 'entertainment' | 'misc';
 
 export type CostType = 'per-guest' | 'fixed';
 
@@ -81,10 +76,10 @@ export const ALL_CATEGORIES: BudgetCategory[] = [
 // Baseline percentage distribution for standard events (sums to 100%)
 const BASELINE_WEIGHTS: Record<BudgetCategory, number> = {
   venue: 0.25,
-  catering: 0.30,
+  catering: 0.3,
   decor: 0.15,
   photography: 0.12,
-  entertainment: 0.10,
+  entertainment: 0.1,
   misc: 0.08,
 };
 
@@ -155,10 +150,12 @@ export function getCostType(category: BudgetCategory): CostType {
  * Calculates category weights boosted by the user's priorities.
  * High priority items get larger multipliers, then weights are normalized to 100%.
  */
-function calculatePriorityWeights(canonicalPriorities: BudgetCategory[]): Record<BudgetCategory, number> {
+function calculatePriorityWeights(
+  canonicalPriorities: BudgetCategory[]
+): Record<BudgetCategory, number> {
   const weights: Record<BudgetCategory, number> = { ...BASELINE_WEIGHTS };
   canonicalPriorities.forEach((cat, index) => {
-    const boostMultiplier = 1 + Math.max(0.15, 0.50 - index * 0.15);
+    const boostMultiplier = 1 + Math.max(0.15, 0.5 - index * 0.15);
     weights[cat] *= boostMultiplier;
   });
 
@@ -231,8 +228,7 @@ export function createBudgetPlan(input: CreateBudgetInput): BudgetPlan {
   if (totalBudget >= allocatedSum) {
     const remainder = totalBudget - allocatedSum;
     allocations.misc.amount += remainder;
-    allocations.misc.percentage =
-      Math.round((allocations.misc.amount / totalBudget) * 1000) / 10;
+    allocations.misc.percentage = Math.round((allocations.misc.amount / totalBudget) * 1000) / 10;
   }
 
   // Warn when the computed catering budget divided by guest count falls below the
@@ -241,8 +237,8 @@ export function createBudgetPlan(input: CreateBudgetInput): BudgetPlan {
   if (cateringPerGuest < MIN_CATERING_COST_PER_GUEST) {
     warnings.push(
       `Catering budget is only ₹${Math.round(cateringPerGuest).toLocaleString('en-IN')} per guest, ` +
-      `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
-      `Consider increasing the total budget or reducing the guest count.`
+        `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
+        `Consider increasing the total budget or reducing the guest count.`
     );
   }
 
@@ -267,10 +263,7 @@ export function createBudgetPlan(input: CreateBudgetInput): BudgetPlan {
  * When money is saved (guests reduced or budget raised), reports it as a "surplus" entry
  * with suggested uses instead of silently adding it to misc.
  */
-export function recalculate(
-  plan: BudgetPlan,
-  changes: BudgetChanges
-): RecalculationResult {
+export function recalculate(plan: BudgetPlan, changes: BudgetChanges): RecalculationResult {
   const newBudget = changes.totalBudget ?? plan.totalBudget;
   const newGuests = changes.guestCount ?? plan.guestCount;
   const newPriorities = changes.priorities ?? plan.priorities;
@@ -310,8 +303,7 @@ export function recalculate(
 
   // Step 1: Adjust per-guest catering cost if guest count changed
   const oldPerGuest =
-    plan.allocations.catering.perGuestAmount ??
-    plan.allocations.catering.amount / plan.guestCount;
+    plan.allocations.catering.perGuestAmount ?? plan.allocations.catering.amount / plan.guestCount;
 
   if (newGuests !== plan.guestCount) {
     const targetCatering = Math.max(minFloor, Math.round(oldPerGuest * newGuests));
@@ -338,10 +330,7 @@ export function recalculate(
   }
 
   // Step 2: Compare total allocations against new budget
-  const currentTotal = ALL_CATEGORIES.reduce(
-    (sum, cat) => sum + updatedAllocations[cat].amount,
-    0
-  );
+  const currentTotal = ALL_CATEGORIES.reduce((sum, cat) => sum + updatedAllocations[cat].amount, 0);
 
   let surplusAmount: number | undefined = undefined;
 
@@ -349,19 +338,19 @@ export function recalculate(
     let excess = currentTotal - newBudget;
 
     // Unprioritized categories are cut first (misc -> entertainment -> decor -> venue)
-    const unprioritized = ALL_CATEGORIES.filter(
-      (cat) => !canonicalPriorities.includes(cat)
-    ).sort((a, b) => {
-      const order: BudgetCategory[] = [
-        'misc',
-        'entertainment',
-        'decor',
-        'venue',
-        'photography',
-        'catering',
-      ];
-      return order.indexOf(a) - order.indexOf(b);
-    });
+    const unprioritized = ALL_CATEGORIES.filter((cat) => !canonicalPriorities.includes(cat)).sort(
+      (a, b) => {
+        const order: BudgetCategory[] = [
+          'misc',
+          'entertainment',
+          'decor',
+          'venue',
+          'photography',
+          'catering',
+        ];
+        return order.indexOf(a) - order.indexOf(b);
+      }
+    );
 
     // Reduce unprioritized categories down to the 3% floor
     for (const cat of unprioritized) {
@@ -405,14 +394,17 @@ export function recalculate(
           const availableAboveFloor = updatedAllocations[cat].amount - minFloor;
           // Priority ranking weighting: higher priority items take smaller share of remaining cut
           const priorityRank = canonicalPriorities.indexOf(cat);
-          const cutWeight = Math.max(0.2, 1 - 0.4 * (canonicalPriorities.length - 1 - priorityRank));
+          const cutWeight = Math.max(
+            0.2,
+            1 - 0.4 * (canonicalPriorities.length - 1 - priorityRank)
+          );
 
           let catCut =
             i === prioritizedCategories.length - 1
               ? excess - distributedExcess
               : Math.min(
                   availableAboveFloor,
-                  Math.floor((excess * (availableAboveFloor / totalPrioritizedAboveFloor)))
+                  Math.floor(excess * (availableAboveFloor / totalPrioritizedAboveFloor))
                 );
 
           // Ensure it does not exceed available above floor
@@ -426,7 +418,8 @@ export function recalculate(
           const existingDiffIndex = differences.findIndex((d) => d.category === cat);
           if (existingDiffIndex >= 0) {
             differences[existingDiffIndex].newAmount = newAmount;
-            differences[existingDiffIndex].reason += ` Then reduced to absorb budget cut while maintaining 3% minimum floor.`;
+            differences[existingDiffIndex].reason +=
+              ` Then reduced to absorb budget cut while maintaining 3% minimum floor.`;
           } else {
             differences.push({
               category: cat,
@@ -441,10 +434,7 @@ export function recalculate(
     }
 
     // Adjust any rounding discrepancy to ensure sum strictly equals newBudget if viable
-    const finalSum = ALL_CATEGORIES.reduce(
-      (sum, cat) => sum + updatedAllocations[cat].amount,
-      0
-    );
+    const finalSum = ALL_CATEGORIES.reduce((sum, cat) => sum + updatedAllocations[cat].amount, 0);
     const roundingDiff = newBudget - finalSum;
     if (roundingDiff !== 0 && canonicalPriorities.length > 0) {
       const topPriority = canonicalPriorities[0];
@@ -497,8 +487,8 @@ export function recalculate(
   if (finalCateringPerGuest < MIN_CATERING_COST_PER_GUEST) {
     warnings.push(
       `Catering budget is only ₹${Math.round(finalCateringPerGuest).toLocaleString('en-IN')} per guest, ` +
-      `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
-      `Consider increasing the total budget or reducing the guest count.`
+        `which is below the recommended minimum of ₹${MIN_CATERING_COST_PER_GUEST.toLocaleString('en-IN')} per guest. ` +
+        `Consider increasing the total budget or reducing the guest count.`
     );
   }
 

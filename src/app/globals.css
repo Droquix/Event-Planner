@@ -1,7 +1,9 @@
 @import url('https://fonts.cdnfonts.com/css/sf-pro-display');
 
 :root {
-  --font-sf: 'SF Pro Display', 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sf:
+    'SF Pro Display', 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'San Francisco',
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --bg-page: #080d19;
   --bg-card: #0d1527;
   --bg-card-inner: #070d19;
@@ -22,13 +24,19 @@
   padding: 0;
 }
 
-html, body, button, input, select, textarea {
+html,
+body,
+button,
+input,
+select,
+textarea {
   font-family: var(--font-sf);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-html, body {
+html,
+body {
   min-height: 100vh;
   background-color: var(--bg-page);
   color: var(--text-main);
@@ -36,7 +44,12 @@ html, body {
 }
 
 /* Major and subheadings: slightly bold with San Francisco tracking */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-sf);
   font-weight: 600;
   letter-spacing: -0.018em;
@@ -45,7 +58,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Background grid pattern matching screenshots */
 .bg-grid-pattern {
   background-color: #070d18;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 36px 36px;
@@ -89,7 +102,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

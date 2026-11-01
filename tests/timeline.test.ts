@@ -22,9 +22,7 @@ describe('Timeline & Scheduling Logic', () => {
     expect(deadline180).toBe('2026-07-04');
 
     // Invalid date input throws error
-    expect(() => calculateDeadline('not-a-real-date', 10)).toThrow(
-      /Invalid date provided/i
-    );
+    expect(() => calculateDeadline('not-a-real-date', 10)).toThrow(/Invalid date provided/i);
   });
 
   // Test 2: Normal case for wedding timeline creation and topological ordering
@@ -103,9 +101,7 @@ describe('Timeline & Scheduling Logic', () => {
     expect(cancelledTask?.status).toBe('cancelled');
 
     // 2. Downstream dependent task 'finalize-catering-menu' should be 'at_risk'
-    const dependentTask = updatedTimeline.find(
-      (t) => t.id === 'finalize-catering-menu'
-    );
+    const dependentTask = updatedTimeline.find((t) => t.id === 'finalize-catering-menu');
     expect(dependentTask).toBeDefined();
     expect(dependentTask?.status).toBe('at_risk');
 
@@ -175,10 +171,7 @@ describe('Timeline & Scheduling Logic', () => {
     ];
 
     const today = '2026-10-26';
-    const { tasks: updatedTasks, warnings, isFeasible } = checkTimelineFeasibility(
-      tasks,
-      today
-    );
+    const { tasks: updatedTasks, warnings, isFeasible } = checkTimelineFeasibility(tasks, today);
 
     expect(isFeasible).toBe(false);
 

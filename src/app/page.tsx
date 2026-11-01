@@ -11,15 +11,15 @@ import { SparklesIcon } from '../components/icons';
 
 // Lazy-load tabs to keep initial bundle compact
 const OnboardingTab = dynamic(() => import('../components/OnboardingTab'), { ssr: false });
-const BudgetTab     = dynamic(() => import('../components/BudgetTab'),     { ssr: false });
-const TimelineTab   = dynamic(() => import('../components/TimelineTab'),   { ssr: false });
-const VendorsTab    = dynamic(() => import('../components/VendorsTab'),    { ssr: false });
+const BudgetTab = dynamic(() => import('../components/BudgetTab'), { ssr: false });
+const TimelineTab = dynamic(() => import('../components/TimelineTab'), { ssr: false });
+const VendorsTab = dynamic(() => import('../components/VendorsTab'), { ssr: false });
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'onboarding', label: 'Onboarding' },
-  { id: 'budget',     label: 'Budget' },
-  { id: 'timeline',   label: 'Timeline' },
-  { id: 'vendors',    label: 'Vendors' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'vendors', label: 'Vendors' },
 ];
 
 export default function Page() {
@@ -77,14 +77,13 @@ export default function Page() {
           fontSize: 13,
         }}
         onFocus={(e) => (e.currentTarget.style.left = '4px')}
-        onBlur={(e)  => (e.currentTarget.style.left = '-9999px')}
+        onBlur={(e) => (e.currentTarget.style.left = '-9999px')}
       >
         Skip to main content
       </a>
 
       <div className="bg-grid-pattern" style={{ minHeight: '100vh', padding: '24px 16px 80px' }}>
         <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-          
           {/* Top Encapsulated Floating Navbar */}
           <header
             style={{
@@ -117,7 +116,15 @@ export default function Page() {
                 <SparklesIcon size={18} color="#070d19" />
               </div>
               <div>
-                <h1 style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc', margin: 0, lineHeight: 1.2 }}>
+                <h1
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: '#f8fafc',
+                    margin: 0,
+                    lineHeight: 1.2,
+                  }}
+                >
                   Event Planner
                 </h1>
                 <p style={{ fontSize: 11, color: '#64748b', margin: '2px 0 0', lineHeight: 1.2 }}>
@@ -243,29 +250,18 @@ export default function Page() {
                 tabIndex={0}
               >
                 {id === 'onboarding' && (
-                  <OnboardingTab
-                    setup={setup}
-                    onSetupChange={setSetup}
-                    onReady={handleReady}
-                  />
+                  <OnboardingTab setup={setup} onSetupChange={setSetup} onReady={handleReady} />
                 )}
                 {id === 'budget' && (
-                  <BudgetTab
-                    setup={setup}
-                    onGoToOnboarding={() => setActive('onboarding')}
-                  />
+                  <BudgetTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
                 )}
                 {id === 'timeline' && (
-                  <TimelineTab
-                    setup={setup}
-                    onGoToOnboarding={() => setActive('onboarding')}
-                  />
+                  <TimelineTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
                 )}
                 {id === 'vendors' && <VendorsTab />}
               </div>
             ))}
           </main>
-
         </div>
       </div>
     </>

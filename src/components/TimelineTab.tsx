@@ -1,24 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import {
-  buildWeddingTimelineWithFeasibility,
-  cancelVendorTask,
-  type Task,
-} from '../lib/timeline';
-import { Card, StatusBadge } from './ui';
-import { CalendarIcon, FilterIcon } from './icons';
-import type { EventSetup } from './OnboardingTab';
+import { buildWeddingTimelineWithFeasibility, cancelVendorTask, type Task } from '../lib/timeline';
+import { Card } from './ui';
+import { CalendarIcon } from './icons';
+import { EventSetup } from '../types/plan';
+import { TimelineStatsCards } from './timeline/TimelineStatsCards';
+import { TimelineActionAlert } from './timeline/TimelineActionAlert';
+import { TimelineTasksTable } from './timeline/TimelineTasksTable';
 
 interface Props {
   setup: EventSetup;
   onGoToOnboarding?: () => void;
 }
-
-// Tasks that represent a vendor booking (can be cancelled)
-const VENDOR_TASK_IDS = new Set([
-  'book-venue', 'hire-caterer', 'hire-photographer', 'hire-decorator',
-]);
 
 export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -55,13 +49,15 @@ export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
       const updated = cancelVendorTask(tasks, taskId);
       const target = tasks.find((t) => t.id === taskId);
       const newlyAtRisk = updated
-        .filter((t) => t.status === 'at_risk' && tasks.find((o) => o.id === t.id)?.status !== 'at_risk')
+        .filter(
+          (t) => t.status === 'at_risk' && tasks.find((o) => o.id === t.id)?.status !== 'at_risk'
+        )
         .map((t) => t.name);
 
       setTasks(updated);
       setLastCancelMsg(
         `"${target?.name}" cancelled.` +
-        (newlyAtRisk.length ? ` Downstream tasks now at risk: ${newlyAtRisk.join(', ')}.` : '')
+          (newlyAtRisk.length ? ` Downstream tasks now at risk: ${newlyAtRisk.join(', ')}.` : '')
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Cancel failed');
@@ -91,7 +87,8 @@ export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
               No event date selected
             </h3>
             <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 20 }}>
-              Set an event date in Onboarding to calculate milestones backwards, evaluate lead times, and monitor dependencies.
+              Set an event date in Onboarding to calculate milestones backwards, evaluate lead
+              times, and monitor dependencies.
             </p>
             {onGoToOnboarding && (
               <button
@@ -118,14 +115,25 @@ export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
   }
 
   if (error) {
-    return <p role="alert" style={{ color: '#fca5a5', padding: 20 }}>{error}</p>;
+    return (
+      <p role="alert" style={{ color: '#fca5a5', padding: 20 }}>
+        {error}
+      </p>
+    );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      
       {/* Top Left-Aligned Hero Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
         <div>
           <p
             style={{
@@ -181,250 +189,19 @@ export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
       </div>
 
       {/* 5 Stats Cards Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: 12,
-        }}
-      >
-        {[
-          { label: 'Total tasks',  value: tasks.length, color: '#f8fafc', border: '#182235' },
-          { label: 'Overdue',      value: counts['overdue'] ?? 0,  color: '#f87171', border: 'rgba(244, 63, 94, 0.4)' },
-          { label: 'At risk',      value: counts['at_risk'] ?? 0,  color: '#38bdf8', border: '#182235' },
-          { label: 'Pending',      value: counts['pending'] ?? 0,  color: '#f8fafc', border: '#182235' },
-          { label: 'Cancelled',    value: counts['cancelled'] ?? 0, color: '#f8fafc', border: '#182235' },
-        ].map(({ label, value, color, border }) => (
-          <div
-            key={label}
-            style={{
-              background: '#0d1527',
-              border: `1px solid ${border}`,
-              borderRadius: 12,
-              padding: '16px 18px',
-            }}
-          >
-            <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>
-              {value}
-            </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
-              {label}
-            </div>
-          </div>
-        ))}
-      </div>
+      <TimelineStatsCards totalTasks={tasks.length} counts={counts} />
 
-      {/* Action Required Banner (matches screenshot with exclamation mark) */}
-      {warnings.length > 0 && (
-        <div
-          role="region"
-          aria-label="Overdue Tasks Action Required"
-          style={{
-            background: 'rgba(244, 63, 94, 0.04)',
-            border: '1px solid rgba(244, 63, 94, 0.35)',
-            borderRadius: 14,
-            padding: '16px 20px',
-            display: 'flex',
-            gap: 14,
-            alignItems: 'flex-start',
-          }}
-        >
-          <div
-            style={{
-              background: '#f87171',
-              color: '#070d19',
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: 12,
-              flexShrink: 0,
-              marginTop: 2,
-            }}
-          >
-            !
-          </div>
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', margin: '0 0 6px' }}>
-              Action required
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {warnings.map((w, idx) => (
-                <p key={idx} style={{ color: '#cbd5e1', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-                  {w}
-                </p>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Action Required Alert & Cancellation banner */}
+      <TimelineActionAlert warnings={warnings} lastCancelMsg={lastCancelMsg} />
 
-      {/* Cancellation Notification feedback */}
-      {lastCancelMsg && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            background: '#131c31',
-            border: '1px solid #1e293b',
-            borderRadius: 10,
-            padding: '10px 16px',
-            color: '#fde68a',
-            fontSize: 12,
-          }}
-        >
-          ℹ️ {lastCancelMsg}
-        </div>
-      )}
-
-      {/* Card: Wedding timeline table */}
-      <Card style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-              Wedding timeline — event: {eventDate}
-            </h3>
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
-              Dependencies and due dates in one calm workspace.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFilterActive(!filterActive)}
-            style={{
-              background: filterActive ? '#1e293b' : '#131c31',
-              border: '1px solid #1e293b',
-              borderRadius: 8,
-              padding: '6px 14px',
-              color: '#cbd5e1',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <FilterIcon size={13} color="#94a3b8" />
-            <span>{filterActive ? 'Show all tasks' : 'Filter tasks'}</span>
-          </button>
-        </div>
-
-        <table
-          role="table"
-          aria-label="Wedding tasks timeline"
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}
-        >
-          <thead>
-            <tr>
-              {['# TASK', 'DEADLINE', 'LEAD TIME', 'DEPENDS ON', 'STATUS', ''].map((h, i) => (
-                <th
-                  key={i}
-                  scope="col"
-                  style={{
-                    padding: '10px 14px',
-                    textAlign: 'left',
-                    color: '#64748b',
-                    fontWeight: 600,
-                    fontSize: 11,
-                    letterSpacing: '0.05em',
-                    borderBottom: '1px solid #182235',
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {displayedTasks.map((task, idx) => {
-              const status = task.status ?? 'pending';
-              const isVendor = VENDOR_TASK_IDS.has(task.id);
-              const isCancelled = status === 'cancelled';
-
-              return (
-                <tr
-                  key={task.id}
-                  style={{ borderBottom: '1px solid #141f33' }}
-                >
-                  <td style={{ padding: '13px 14px', fontWeight: 500, color: '#f8fafc', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: '#64748b', marginRight: 10 }}>{idx + 1}</span>
-                    <span>{task.name}</span>
-                    {isVendor && (
-                      <span
-                        style={{
-                          color: '#60a5fa',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          marginLeft: 8,
-                        }}
-                      >
-                        VENDOR
-                      </span>
-                    )}
-                  </td>
-
-                  <td style={{ padding: '13px 14px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {task.deadline ?? '—'}
-                  </td>
-
-                  <td style={{ padding: '13px 14px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {task.daysBeforeEvent}d before
-                  </td>
-
-                  <td style={{ padding: '13px 14px', color: '#94a3b8', fontSize: 12 }}>
-                    {task.dependsOn.length
-                      ? task.dependsOn.join(', ')
-                      : <span style={{ color: '#475569' }}>—</span>}
-                  </td>
-
-                  <td style={{ padding: '13px 14px' }}>
-                    <StatusBadge status={status} />
-                  </td>
-
-                  <td style={{ padding: '13px 14px', textAlign: 'right' }}>
-                    {isVendor && !isCancelled && (
-                      <button
-                        type="button"
-                        onClick={() => handleCancel(task.id)}
-                        aria-label={`Cancel vendor task: ${task.name}`}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: 9999,
-                          color: '#cbd5e1',
-                          padding: '4px 12px',
-                          fontSize: 11,
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          whiteSpace: 'nowrap',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#f87171';
-                          e.currentTarget.style.color = '#f87171';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#334155';
-                          e.currentTarget.style.color = '#cbd5e1';
-                        }}
-                      >
-                        Cancel vendor
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
-
+      {/* Wedding timeline table */}
+      <TimelineTasksTable
+        tasks={displayedTasks}
+        eventDate={eventDate}
+        filterActive={filterActive}
+        onToggleFilter={() => setFilterActive(!filterActive)}
+        onCancelTask={handleCancel}
+      />
     </div>
   );
 }

@@ -212,17 +212,15 @@ Hope this helps!`;
     process.env.OPENROUTER_API_KEY = 'sk-or-v1-valid-test-key-1234567890';
 
     // Attempt 1 fails, Attempt 2 succeeds
-    mockCreate
-      .mockRejectedValueOnce(new Error('Transient network glitch'))
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({ name: 'Recovered Event', budget: 450000 }),
-            },
+    mockCreate.mockRejectedValueOnce(new Error('Transient network glitch')).mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({ name: 'Recovered Event', budget: 450000 }),
           },
-        ],
-      });
+        },
+      ],
+    });
 
     const result = await callAI({
       userPrompt: 'Retry test',

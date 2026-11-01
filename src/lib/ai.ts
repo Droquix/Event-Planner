@@ -13,6 +13,7 @@
 
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { AI_REQUEST_TIMEOUT_MS } from './constants';
 
 export interface AICallConfig<T> {
   systemPrompt?: string;
@@ -38,7 +39,10 @@ export function cleanAIResponse(raw: string): string {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
   // 2. Remove markdown code fences ```json ... ``` or ``` ... ```
-  text = text.replace(/^```[a-zA-Z]*\n?/gm, '').replace(/```$/gm, '').trim();
+  text = text
+    .replace(/^```[a-zA-Z]*\n?/gm, '')
+    .replace(/```$/gm, '')
+    .trim();
 
   // 3. Find outer JSON boundaries ({...} or [...])
   const firstBrace = text.indexOf('{');
@@ -72,7 +76,7 @@ function getOpenAIClient(apiKey: string): OpenAI {
   return new OpenAI({
     apiKey,
     baseURL: 'https://openrouter.ai/api/v1',
-    timeout: 25000,
+    timeout: AI_REQUEST_TIMEOUT_MS,
     defaultHeaders: {
       'HTTP-Referer': 'https://event-planner.local',
       'X-Title': 'Event Planner',
@@ -102,7 +106,7 @@ async function executeAttempt<T>(
       messages,
       temperature: 0.2,
     },
-    { timeout: 25000 }
+    { timeout: AI_REQUEST_TIMEOUT_MS }
   );
 
   const rawContent = completion.choices?.[0]?.message?.content ?? '';

@@ -2,6 +2,8 @@
  * Simple in-memory per-IP rate limiter for server-side API routes.
  */
 
+import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_ENTRIES } from './constants';
+
 interface RateLimitRecord {
   count: number;
   resetTime: number;
@@ -15,14 +17,14 @@ const ipRecords = new Map<string, RateLimitRecord>();
  */
 export function checkRateLimit(
   ip: string,
-  limit: number = 30,
-  windowMs: number = 60000
+  limit: number = RATE_LIMIT_MAX_REQUESTS,
+  windowMs: number = RATE_LIMIT_WINDOW_MS
 ): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = ipRecords.get(ip);
 
-  // Periodic cleanup of expired records if map exceeds 10,000 IPs
-  if (ipRecords.size > 10000) {
+  // Periodic cleanup of expired records if map exceeds maximum allowed entries
+  if (ipRecords.size > RATE_LIMIT_MAX_ENTRIES) {
     for (const [k, v] of ipRecords.entries()) {
       if (now > v.resetTime) {
         ipRecords.delete(k);

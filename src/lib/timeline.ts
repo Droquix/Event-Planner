@@ -5,12 +5,7 @@
  */
 
 export type TaskStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'completed'
-  | 'at_risk'
-  | 'cancelled'
-  | 'overdue';
+  'pending' | 'in_progress' | 'completed' | 'at_risk' | 'cancelled' | 'overdue';
 
 export interface Task {
   id: string;
@@ -117,10 +112,7 @@ function parseDateToUtcMs(inputDate: string | Date): number {
  * Calculates a deadline date backwards from an event date by a given number of days.
  * Operates in UTC to prevent timezone and daylight saving drift.
  */
-export function calculateDeadline(
-  eventDate: string | Date,
-  daysBeforeEvent: number
-): string {
+export function calculateDeadline(eventDate: string | Date, daysBeforeEvent: number): string {
   const baseMs = parseDateToUtcMs(eventDate);
   const targetDate = new Date(baseMs);
   targetDate.setUTCDate(targetDate.getUTCDate() - daysBeforeEvent);
@@ -181,9 +173,7 @@ export function sortTasksTopologically(tasks: Task[]): Task[] {
   // Step 1: Detect circular dependencies
   const cycle = findCycle(tasks);
   if (cycle) {
-    throw new Error(
-      `Circular dependency detected: ${cycle.join(' -> ')}`
-    );
+    throw new Error(`Circular dependency detected: ${cycle.join(' -> ')}`);
   }
 
   // Step 2: Kahn's algorithm for topological sorting
@@ -228,9 +218,7 @@ export function sortTasksTopologically(tasks: Task[]): Task[] {
   }
 
   if (sorted.length !== tasks.length) {
-    throw new Error(
-      'Circular dependency detected: Not all tasks could be resolved.'
-    );
+    throw new Error('Circular dependency detected: Not all tasks could be resolved.');
   }
 
   return sorted;
@@ -319,10 +307,7 @@ export function checkTimelineFeasibility(
 
     const deadlineMs = parseDateToUtcMs(task.deadline);
     if (deadlineMs < todayMs) {
-      const daysOverdue = Math.max(
-        1,
-        Math.round((todayMs - deadlineMs) / (1000 * 60 * 60 * 24))
-      );
+      const daysOverdue = Math.max(1, Math.round((todayMs - deadlineMs) / (1000 * 60 * 60 * 24)));
       overdueTaskIds.add(task.id);
 
       const warningMessage = `${task.name} is ${daysOverdue} ${
@@ -392,7 +377,8 @@ export function buildWeddingTimelineWithFeasibility(
   const check = checkTimelineFeasibility(sortedTasks, todayDate);
 
   if (eventMs < todayMs) {
-    const formatted = typeof eventDate === 'string' ? eventDate : eventDate.toISOString().split('T')[0];
+    const formatted =
+      typeof eventDate === 'string' ? eventDate : eventDate.toISOString().split('T')[0];
     check.warnings.unshift(
       `Event date (${formatted}) is in the past. All milestone lead times are elapsed.`
     );

@@ -32,43 +32,142 @@ Event Planner simplifies high-stakes event coordination into four synchronized m
 
 ---
 
-## 2. Architecture: Deterministic Core vs. AI Helper
+## 2. Architecture & Design Decisions
 
-The application enforces a strict architectural boundary between math and language:
+### System Architecture Diagram
 
+```mermaid
+graph TD
+    subgraph UI ["Client Layer (Next.js 14 / React 18)"]
+        Onboarding["OnboardingTab<br/>(Brief, Details, Priorities)"]
+        Budget["BudgetTab<br/>(Sliders, Breakdown, Tradeoffs, Ideas)"]
+        Timeline["TimelineTab<br/>(Stats, Alerts, DAG Schedule)"]
+        Vendors["VendorsTab<br/>(Quotes Form, Cards, Comparisons)"]
+        Hook["useAbortableRequest Hook<br/>(In-flight cancel & seq guard)"]
+    end
+
+    subgraph Core ["Deterministic Core (Pure Math & Algorithms)"]
+        BudgetCore["budget.ts<br/>• 3% Category Floors<br/>• Dynamic Scaling<br/>• Strict Sum Invariants"]
+        TimelineCore["timeline.ts<br/>• Backward DAG Math (UTC)<br/>• Risk Cascading<br/>• Milestone Feasibility"]
+    end
+
+    subgraph API ["Server-Side API Routes (Edge-Ready Handlers)"]
+        ApiHandler["api-handler.ts<br/>• IP Rate Limiting<br/>• Body Byte Limit Guard<br/>• Zod Schema Validation"]
+        Route1["/api/parse-intake"]
+        Route2["/api/explain-changes"]
+        Route3["/api/ideas"]
+        Route4["/api/vendor-questions"]
+    end
+
+    subgraph AI ["GenAI Engine (OpenRouter / Fallback)"]
+        AIHelper["ai.ts Helper<br/>• Think-tag stripper<br/>• 25s Timeout & 1x Retry<br/>• Demo Mode Fallback"]
+        OpenRouter["OpenRouter API<br/>(Qwen / DeepSeek Models)"]
+    end
+
+    Onboarding --> Hook
+    Budget --> Hook
+    Vendors --> Hook
+    Hook --> ApiHandler
+
+    Budget --> BudgetCore
+    Timeline --> TimelineCore
+
+    ApiHandler --> Route1
+    ApiHandler --> Route2
+    ApiHandler --> Route3
+    ApiHandler --> Route4
+
+    Route1 --> AIHelper
+    Route2 --> AIHelper
+    Route3 --> AIHelper
+    Route4 --> AIHelper
+
+    AIHelper --> OpenRouter
 ```
-┌────────────────────────────────────────────────────────┐
-│                   DETERMINISTIC CORE                   │
-│  (src/lib/budget.ts & src/lib/timeline.ts)             │
-│                                                        │
-│  • Pure mathematical budget allocation & floors        │
-│  • DAG topological sorting & cycle detection           │
-│  • Milestone backward deadline math (UTC)              │
-│  • Cascading cancellation risk propagation             │
-│  • Invariant: sum(allocations) + surplus === budget    │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           │ Feeds structured data
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│                      GENAI HELPER                      │
-│  (src/lib/ai.ts & src/app/api/*)                       │
-│                                                        │
-│  • Natural language parsing (/api/parse-intake)        │
-│  • Tradeoff summaries (/api/explain-changes)           │
-│  • Personalized enhancements (/api/ideas)              │
-│  • Vendor inquiry drafting (/api/vendor-questions)     │
-│  • Fallback demo mode on missing key or failure        │
-└────────────────────────────────────────────────────────┘
-```
 
-- **All financial math, deadlines, and dependencies are computed deterministically.**
-- **AI never calculates, invents, or modifies budget allocations or calendar dates.**
-- AI operates strictly as an asynchronous language assistant through server-side API routes wrapped in Zod schema validation.
+### Key Design Decisions
+
+1. **Strict Separation of Math and AI**:
+   - All budget sums, percentage allocations, catering scaling, deadline dates, and dependency graphs are calculated purely by deterministic TypeScript algorithms.
+   - LLM generation is restricted exclusively to natural language transformation (summarization, parsing suggestions, message drafting). The LLM is never permitted to set, modify, or recalculate budget numbers or timeline dates.
+2. **Zero Client-Side Persistent State**:
+   - State is stored only in active React memory. Refreshing the browser or clicking "Start new plan" guarantees a 100% clean, predictable state reset without lingering storage corruption.
+3. **Concurrency & Race Condition Elimination**:
+   - The centralized `useAbortableRequest` hook manages `AbortController` cancellation and monotonic request ID sequence guards. Fast consecutive user interactions cancel superseded in-flight requests and silently ignore out-of-order responses.
+4. **Resilient AI Execution & Demo Fallbacks**:
+   - Every AI route implements a 25-second timeout, 1 automatic retry on parse errors, and graceful degradation to realistic demo responses when keys are absent or services are degraded. Clear `Live AI` and `Demo mode` badges provide total transparency.
 
 ---
 
-## 3. Environment Variables
+## 3. Project Structure
+
+```
+event-planner/
+├── public/                 # Static assets and showcase media
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── explain-changes/route.ts   # AI tradeoff analysis
+│   │   │   ├── ideas/route.ts             # AI personalized enhancements
+│   │   │   ├── parse-intake/route.ts      # Natural language brief parsing
+│   │   │   └── vendor-questions/route.ts  # Vendor outreach drafter
+│   │   ├── error.tsx       # Global React error boundary
+│   │   ├── globals.css     # Design tokens and San Francisco typography
+│   │   ├── layout.tsx      # Root HTML metadata and CSP tags
+│   │   └── page.tsx        # Tab orchestrator, header, and plan reset
+│   ├── components/
+│   │   ├── budget/         # Modular budget breakdown and tradeoff cards
+│   │   │   ├── BudgetBreakdownTable.tsx
+│   │   │   ├── BudgetIdeasGrid.tsx
+│   │   │   ├── BudgetSlidersCard.tsx
+│   │   │   ├── BudgetTradeoffCard.tsx
+│   │   │   └── types.ts
+│   │   ├── onboarding/     # Modular intake brief and parameter cards
+│   │   │   ├── OnboardingBriefCard.tsx
+│   │   │   ├── OnboardingDetailsCard.tsx
+│   │   │   ├── OnboardingPrioritiesCard.tsx
+│   │   │   └── types.ts
+│   │   ├── timeline/       # Modular timeline cards, alerts, and tables
+│   │   │   ├── TimelineActionAlert.tsx
+│   │   │   ├── TimelineStatsCards.tsx
+│   │   │   ├── TimelineTasksTable.tsx
+│   │   │   └── types.ts
+│   │   ├── vendors/        # Modular vendor quote cards and comparisons
+│   │   │   ├── VendorComparisonTable.tsx
+│   │   │   ├── VendorEmptyState.tsx
+│   │   │   ├── VendorQuoteCard.tsx
+│   │   │   ├── VendorQuoteForm.tsx
+│   │   │   └── types.ts
+│   │   ├── icons.tsx       # Accessible SVG icon primitives
+│   │   └── ui.tsx          # Design-system cards, buttons, badges, and alerts
+│   ├── hooks/
+│   │   └── useAbortableRequest.ts  # Shared concurrency & abort controller hook
+│   ├── lib/
+│   │   ├── ai.ts           # OpenRouter client, think-tag parser, and fallback
+│   │   ├── api-handler.ts  # Standardized route validation, IP limits, size checks
+│   │   ├── budget.ts       # Deterministic budget allocation & scaling engine
+│   │   ├── constants.ts    # Centralized system constants and rate limits
+│   │   ├── rate-limit.ts   # Sliding-window IP rate limiter
+│   │   └── timeline.ts     # Topological DAG scheduling & feasibility engine
+│   └── types/
+│       ├── css.d.ts        # CSS module typings
+│       └── plan.ts         # Shared event domain models
+├── tests/                  # Vitest comprehensive unit and integration suites
+│   ├── ai.test.ts          # OpenRouter mocking, think tags, retries, fallbacks
+│   ├── api-routes.test.ts  # Rate limits, body size guards, Zod validation
+│   ├── budget.test.ts      # Floors, catering scaling, invariants
+│   ├── edge-cases.test.ts  # NaN, past dates, zero vendors, negative numbers
+│   ├── reset.test.ts       # State purity and fresh reload verification
+│   └── timeline.test.ts    # DAG sorting, cascading risks, deadlines
+├── .prettierrc             # Standardized code formatting configuration
+├── next.config.mjs         # Production CSP security headers and build config
+├── package.json            # Scripts and dependencies
+└── tsconfig.json           # Strict TypeScript configuration
+```
+
+---
+
+## 4. Environment Variables
 
 Configure environment variables in `.env.local` (never committed to version control):
 
@@ -81,50 +180,17 @@ Configure environment variables in `.env.local` (never committed to version cont
 
 ---
 
-## 4. How to Run
+## 5. Development & Verification Scripts
 
-### Prerequisites
-- Node.js 18+ (tested on Node 20 & 24)
-- npm 9+
-
-### Setup & Development
-```bash
-# 1. Clone repository
-git clone https://github.com/Droquix/Event-Planner.git
-cd Event-Planner
-
-# 2. Install dependencies
-npm install
-
-# 3. Configure environment (optional - demo mode runs out of the box)
-cp .env.example .env.local
-
-# 4. Start local development server
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 5. How to Test
-
-```bash
-# Run complete test suite (48 tests across 6 suites)
-npm test
-
-# Run test coverage analysis
-npx vitest run --coverage
-
-# Run ESLint validation
-npm run lint
-
-# Run TypeScript typecheck
-npx tsc --noEmit
-
-# Run Next.js production build
-npm run build
-```
+| Command | Action |
+| :--- | :--- |
+| `npm run dev` | Launch local development server on `http://localhost:3000` |
+| `npm run build` | Next.js optimized production build |
+| `npm run start` | Start production server with security headers active |
+| `npm run lint` | Run ESLint validation |
+| `npm run typecheck` | Run TypeScript strict compiler verification (`tsc --noEmit`) |
+| `npm run format` | Auto-format codebase using Prettier |
+| `npm test` | Run complete Vitest suite (all test files) |
 
 ---
 

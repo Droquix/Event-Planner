@@ -2,12 +2,35 @@ import React from 'react';
 import { Card, Field, SelectField } from '../ui';
 import { CalendarIcon } from '../icons';
 import { OCCASIONS } from './types';
-import { EventSetup } from '../../types/plan';
+import type { EventSetup } from '../../types/plan';
 
 export interface OnboardingDetailsCardProps {
   setup: EventSetup;
   onFieldChange: (field: keyof EventSetup, value: EventSetup[keyof EventSetup]) => void;
 }
+
+const DetailsHeader: React.FC = () => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+    <div
+      style={{
+        background: '#172339',
+        color: '#38bdf8',
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <CalendarIcon size={16} color="#38bdf8" />
+    </div>
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+      Event details
+    </h3>
+  </div>
+);
 
 export const OnboardingDetailsCard: React.FC<OnboardingDetailsCardProps> = ({
   setup,
@@ -15,35 +38,10 @@ export const OnboardingDetailsCard: React.FC<OnboardingDetailsCardProps> = ({
 }) => {
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div
-          style={{
-            background: '#172339',
-            color: '#38bdf8',
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <CalendarIcon size={16} color="#38bdf8" />
-        </div>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-          Event details
-        </h3>
-      </div>
+      <DetailsHeader />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 16,
-          }}
-        >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           <SelectField
             id="occasion"
             label="Occasion *"

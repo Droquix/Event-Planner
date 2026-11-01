@@ -12,6 +12,96 @@ export interface OnboardingBriefCardProps {
   onLoadSample: () => void;
 }
 
+const BriefHeader: React.FC = () => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+    <div>
+      <h3 style={{ fontSize: 15, fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+        Describe your event (optional)
+      </h3>
+      <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
+        Share the outline and we&apos;ll prefill the details below.
+      </p>
+    </div>
+    <div style={{ color: '#60a5fa', opacity: 0.85, padding: 4 }}>
+      <SparklesIcon size={18} color="#60a5fa" />
+    </div>
+  </div>
+);
+
+interface ButtonsProps {
+  parsing: boolean;
+  text: string;
+  aiDemo?: boolean;
+  onParse: () => void;
+  onLoadSample: () => void;
+}
+
+const BriefButtons: React.FC<ButtonsProps> = ({
+  parsing,
+  text,
+  aiDemo,
+  onParse,
+  onLoadSample,
+}) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+    <button
+      type="button"
+      onClick={onParse}
+      disabled={parsing || !text.trim()}
+      style={{
+        background: '#60a5fa',
+        color: '#070d19',
+        border: 'none',
+        borderRadius: 8,
+        padding: '10px 18px',
+        minHeight: 44,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: parsing || !text.trim() ? 'not-allowed' : 'pointer',
+        opacity: parsing || !text.trim() ? 0.5 : 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        transition: 'background 0.15s ease',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
+    >
+      <SparklesIcon size={14} color="#070d19" />
+      <span>{parsing ? 'Analyzing with AI…' : 'Auto-fill fields'}</span>
+    </button>
+    <button
+      type="button"
+      onClick={onLoadSample}
+      style={{
+        background: 'transparent',
+        color: '#94a3b8',
+        border: '1px solid #1e293b',
+        borderRadius: 8,
+        padding: '10px 16px',
+        minHeight: 44,
+        fontSize: 12,
+        fontWeight: 500,
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = '#f8fafc';
+        e.currentTarget.style.borderColor = '#334155';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = '#94a3b8';
+        e.currentTarget.style.borderColor = '#1e293b';
+      }}
+    >
+      Load sample brief
+    </button>
+    <AIBadge demo={aiDemo} loading={parsing} />
+  </div>
+);
+
 export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
   text,
   parsing,
@@ -23,32 +113,10 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
 }) => {
   return (
     <Card>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-            Describe your event (optional)
-          </h3>
-          <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
-            Share the outline and we&apos;ll prefill the details below.
-          </p>
-        </div>
-        <div style={{ color: '#60a5fa', opacity: 0.85, padding: 4 }}>
-          <SparklesIcon size={18} color="#60a5fa" />
-        </div>
-      </div>
+      <BriefHeader />
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <label
-          htmlFor="intake-text"
-          style={{ fontSize: 12, fontWeight: 500, color: '#cbd5e1', marginBottom: 6 }}
-        >
+        <label htmlFor="intake-text" style={{ fontSize: 12, fontWeight: 500, color: '#cbd5e1', marginBottom: 6 }}>
           Event description
         </label>
         <textarea
@@ -76,80 +144,23 @@ export const OnboardingBriefCard: React.FC<OnboardingBriefCardProps> = ({
           aria-invalid={Boolean(parseError)}
           aria-busy={parsing}
         />
-        <span
-          id="intake-help"
-          style={{ fontSize: 11, color: '#64748b', marginTop: 6, marginBottom: 14 }}
-        >
+        <span id="intake-help" style={{ fontSize: 11, color: '#64748b', marginTop: 6, marginBottom: 14 }}>
           Mention date, budget, guest count, and city. You can always edit the details.
         </span>
 
         {parseError && (
-          <p
-            id="intake-error"
-            role="alert"
-            style={{ color: '#fca5a5', fontSize: 12, marginBottom: 12 }}
-          >
+          <p id="intake-error" role="alert" style={{ color: '#fca5a5', fontSize: 12, marginBottom: 12 }}>
             {parseError}
           </p>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={onParse}
-            disabled={parsing || !text.trim()}
-            style={{
-              background: '#60a5fa',
-              color: '#070d19',
-              border: 'none',
-              borderRadius: 8,
-              padding: '10px 18px',
-              minHeight: 44,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: parsing || !text.trim() ? 'not-allowed' : 'pointer',
-              opacity: parsing || !text.trim() ? 0.5 : 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              transition: 'background 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
-          >
-            <SparklesIcon size={14} color="#070d19" />
-            <span>{parsing ? 'Analyzing with AI…' : 'Auto-fill fields'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onLoadSample}
-            style={{
-              background: 'transparent',
-              color: '#94a3b8',
-              border: '1px solid #1e293b',
-              borderRadius: 8,
-              padding: '10px 16px',
-              minHeight: 44,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#f8fafc';
-              e.currentTarget.style.borderColor = '#334155';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#94a3b8';
-              e.currentTarget.style.borderColor = '#1e293b';
-            }}
-          >
-            Load sample brief
-          </button>
-          <AIBadge demo={aiDemo} loading={parsing} />
-        </div>
+        <BriefButtons
+          parsing={parsing}
+          text={text}
+          aiDemo={aiDemo}
+          onParse={onParse}
+          onLoadSample={onLoadSample}
+        />
       </div>
     </Card>
   );

@@ -1,30 +1,88 @@
 import React from 'react';
 import { Card } from '../ui';
 import { DotsIcon } from '../icons';
-import { ALL_CATEGORIES, BudgetPlan } from '../../lib/budget';
+import { ALL_CATEGORIES } from '../../lib/budget';
+import type { BudgetPlan, BudgetCategory, CategoryAllocation } from '../../lib/budget';
 import { formatInr } from './types';
 
 export interface BudgetBreakdownTableProps {
   plan: BudgetPlan;
 }
 
+const tableHeaders = ['CATEGORY', 'AMOUNT', 'SHARE', 'PRICING TYPE', 'PER-GUEST COST'];
+
+const TableHead: React.FC = () => (
+  <thead>
+    <tr>
+      {tableHeaders.map((h) => (
+        <th
+          key={h}
+          scope="col"
+          style={{
+            padding: '10px 14px',
+            textAlign: 'left',
+            color: '#64748b',
+            fontWeight: 600,
+            fontSize: 11,
+            letterSpacing: '0.05em',
+            borderBottom: '1px solid #182235',
+          }}
+        >
+          {h}
+        </th>
+      ))}
+    </tr>
+  </thead>
+);
+
+interface RowProps {
+  cat: BudgetCategory;
+  alloc: CategoryAllocation;
+}
+
+const CategoryRow: React.FC<RowProps> = ({ cat, alloc }) => {
+  const catTitle = cat.charAt(0).toUpperCase() + cat.slice(1);
+  const pricingType = alloc.costType === 'per-guest' ? 'Per-guest' : 'Fixed';
+  const perGuest = alloc.perGuestAmount
+    ? `₹${alloc.perGuestAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : '—';
+
+  return (
+    <tr style={{ borderBottom: '1px solid #141f33' }}>
+      <td style={{ padding: '13px 14px', fontWeight: 500, color: '#f8fafc' }}>{catTitle}</td>
+      <td style={{ padding: '13px 14px', color: '#38bdf8', fontWeight: 700 }}>
+        ₹{alloc.amount.toLocaleString('en-IN')}
+      </td>
+      <td style={{ padding: '13px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            role="progressbar"
+            aria-valuenow={alloc.percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${cat} share ${alloc.percentage}%`}
+            style={{ width: 48, height: 5, background: '#1e293b', borderRadius: 9999, overflow: 'hidden' }}
+          >
+            <div style={{ width: `${alloc.percentage}%`, height: '100%', background: '#60a5fa', borderRadius: 9999 }} />
+          </div>
+          <span style={{ color: '#94a3b8', fontSize: 12 }}>{alloc.percentage}%</span>
+        </div>
+      </td>
+      <td style={{ padding: '13px 14px', color: '#94a3b8' }}>{pricingType}</td>
+      <td style={{ padding: '13px 14px', color: '#94a3b8' }}>{perGuest}</td>
+    </tr>
+  );
+};
+
 export const BudgetBreakdownTable: React.FC<BudgetBreakdownTableProps> = ({ plan }) => {
   const surplus = plan.surplus ?? 0;
 
   return (
     <Card style={{ overflowX: 'auto' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 18,
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-            Budget breakdown — ₹{Number(plan.totalBudget).toLocaleString('en-IN')} ·{' '}
-            {plan.guestCount} guests
+            Budget breakdown — ₹{Number(plan.totalBudget).toLocaleString('en-IN')} · {plan.guestCount} guests
           </h3>
           <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
             A balanced baseline, ready for your input.
@@ -35,82 +93,12 @@ export const BudgetBreakdownTable: React.FC<BudgetBreakdownTableProps> = ({ plan
         </div>
       </div>
 
-      <table
-        role="table"
-        aria-label="Budget allocation by category"
-        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}
-      >
-        <thead>
-          <tr>
-            {['CATEGORY', 'AMOUNT', 'SHARE', 'PRICING TYPE', 'PER-GUEST COST'].map((h) => (
-              <th
-                key={h}
-                scope="col"
-                style={{
-                  padding: '10px 14px',
-                  textAlign: 'left',
-                  color: '#64748b',
-                  fontWeight: 600,
-                  fontSize: 11,
-                  letterSpacing: '0.05em',
-                  borderBottom: '1px solid #182235',
-                }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
+      <table role="table" aria-label="Budget allocation by category" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <TableHead />
         <tbody>
-          {ALL_CATEGORIES.map((cat) => {
-            const alloc = plan.allocations[cat];
-            const catTitle = cat.charAt(0).toUpperCase() + cat.slice(1);
-            const pricingTypeFormatted = alloc.costType === 'per-guest' ? 'Per-guest' : 'Fixed';
-            const perGuestFormatted = alloc.perGuestAmount
-              ? `₹${alloc.perGuestAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : '—';
-
-            return (
-              <tr key={cat} style={{ borderBottom: '1px solid #141f33' }}>
-                <td style={{ padding: '13px 14px', fontWeight: 500, color: '#f8fafc' }}>
-                  {catTitle}
-                </td>
-                <td style={{ padding: '13px 14px', color: '#38bdf8', fontWeight: 700 }}>
-                  ₹{alloc.amount.toLocaleString('en-IN')}
-                </td>
-                <td style={{ padding: '13px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div
-                      role="progressbar"
-                      aria-valuenow={alloc.percentage}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`${cat} share ${alloc.percentage}%`}
-                      style={{
-                        width: 48,
-                        height: 5,
-                        background: '#1e293b',
-                        borderRadius: 9999,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${alloc.percentage}%`,
-                          height: '100%',
-                          background: '#60a5fa',
-                          borderRadius: 9999,
-                        }}
-                      />
-                    </div>
-                    <span style={{ color: '#94a3b8', fontSize: 12 }}>{alloc.percentage}%</span>
-                  </div>
-                </td>
-                <td style={{ padding: '13px 14px', color: '#94a3b8' }}>{pricingTypeFormatted}</td>
-                <td style={{ padding: '13px 14px', color: '#94a3b8' }}>{perGuestFormatted}</td>
-              </tr>
-            );
-          })}
+          {ALL_CATEGORIES.map((cat) => (
+            <CategoryRow key={cat} cat={cat} alloc={plan.allocations[cat]} />
+          ))}
         </tbody>
         {surplus > 0 && (
           <tfoot>

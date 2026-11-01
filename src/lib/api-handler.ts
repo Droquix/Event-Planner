@@ -3,10 +3,11 @@
  * Standardizes rate limiting, payload size capping, JSON parsing, and Zod validation across all API routes.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import { type NextRequest, NextResponse } from 'next/server';
+import type { z } from 'zod';
 import { checkRateLimit, getClientIp } from './rate-limit';
 import { MAX_REQUEST_BODY_BYTES } from './constants';
+import { RateLimitError, ValidationError, formatErrorResponse } from './errors';
 
 export interface ValidatedRequest<T> {
   data: T;
@@ -15,7 +16,6 @@ export interface ValidatedRequest<T> {
 
 /**
  * Validates an incoming NextRequest with IP rate-limiting, body size checks, and Zod parsing.
- * Returns either a NextResponse error (to return immediately) or the validated payload data.
  */
 export async function validateApiRequest<T>(
   req: NextRequest,
@@ -28,24 +28,22 @@ export async function validateApiRequest<T>(
   const clientIp = getClientIp(req);
   const { allowed } = checkRateLimit(clientIp);
   if (!allowed) {
+    const err = new RateLimitError();
     return {
       success: false,
-      response: NextResponse.json(
-        { error: 'Rate limit exceeded. Please wait a minute before retrying.' },
-        { status: 429 }
-      ),
+      response: NextResponse.json({ error: err.message }, { status: err.statusCode }),
     };
   }
 
   // 2. Request Body Read & Size Guard
   const rawBody = await req.text().catch(() => '');
   if (!rawBody || rawBody.length > maxBytes) {
+    const err = new ValidationError(
+      `Payload too large. Maximum allowed size is ${maxBytes} bytes.`
+    );
     return {
       success: false,
-      response: NextResponse.json(
-        { error: `Payload too large. Maximum allowed size is ${maxBytes} bytes.` },
-        { status: 400 }
-      ),
+      response: NextResponse.json({ error: err.message }, { status: err.statusCode }),
     };
   }
 
@@ -54,9 +52,10 @@ export async function validateApiRequest<T>(
   try {
     parsedJson = JSON.parse(rawBody);
   } catch {
+    const err = new ValidationError('Invalid JSON payload format.');
     return {
       success: false,
-      response: NextResponse.json({ error: 'Invalid JSON payload format.' }, { status: 400 }),
+      response: NextResponse.json({ error: err.message }, { status: err.statusCode }),
     };
   }
 
@@ -64,9 +63,10 @@ export async function validateApiRequest<T>(
   const result = schema.safeParse(parsedJson);
   if (!result.success) {
     const firstErrorMessage = result.error.issues?.[0]?.message || 'Invalid request parameters.';
+    const err = new ValidationError(firstErrorMessage);
     return {
       success: false,
-      response: NextResponse.json({ error: firstErrorMessage }, { status: 400 }),
+      response: NextResponse.json({ error: err.message }, { status: err.statusCode }),
     };
   }
 
@@ -80,9 +80,15 @@ export async function validateApiRequest<T>(
 }
 
 /**
- * Standardized 500 internal server error response generator.
+ * Standardized internal server error response generator.
  * Never leaks internal traces, system paths, or raw stack traces.
  */
-export function handleInternalError(context: string): NextResponse {
+export function handleInternalError(context: string, originalError?: unknown): NextResponse {
+  if (originalError) {
+    const { error, status } = formatErrorResponse(originalError);
+    if (status !== 500) {
+      return NextResponse.json({ error }, { status });
+    }
+  }
   return NextResponse.json({ error: `Failed to ${context}. Please try again.` }, { status: 500 });
 }

@@ -1,4 +1,4 @@
-import { BudgetCategory } from '../../lib/budget';
+import type { BudgetCategory } from '../../lib/budget';
 
 export interface VendorQuote {
   id: string;

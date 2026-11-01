@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import OnboardingTab from '../src/components/OnboardingTab';
@@ -9,6 +9,15 @@ import VendorsTab from '../src/components/VendorsTab';
 import { EMPTY_SETUP, EventSetup } from '../src/types/plan';
 
 expect.extend(toHaveNoViolations);
+
+beforeEach(() => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({ data: { ideas: [] }, demo: true }),
+    })
+  );
+});
 
 const sampleSetup: EventSetup = {
   occasion: 'wedding',

@@ -3,7 +3,8 @@
  * Generates a 2-3 sentence plain-language tradeoff explanation of budget recalculation differences.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
 import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';

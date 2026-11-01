@@ -171,26 +171,26 @@ event-planner/
 
 Configure environment variables in `.env.local` (never committed to version control):
 
-| Variable Name | Description |
-| :--- | :--- |
-| `OPENROUTER_API_KEY` | OpenRouter API authentication key |
-| `OPENROUTER_MODEL` | OpenRouter model identifier (default: `qwen/qwen3-next-80b-a3b-instruct`) |
+| Variable Name        | Description                                                               |
+| :------------------- | :------------------------------------------------------------------------ |
+| `OPENROUTER_API_KEY` | OpenRouter API authentication key                                         |
+| `OPENROUTER_MODEL`   | OpenRouter model identifier (default: `qwen/qwen3-next-80b-a3b-instruct`) |
 
-*Note: If `OPENROUTER_API_KEY` is omitted, empty, or fails, the application seamlessly enters Demo Mode with realistic pre-written responses. The application never crashes due to AI availability.*
+_Note: If `OPENROUTER_API_KEY` is omitted, empty, or fails, the application seamlessly enters Demo Mode with realistic pre-written responses. The application never crashes due to AI availability._
 
 ---
 
 ## 5. Development & Verification Scripts
 
-| Command | Action |
-| :--- | :--- |
-| `npm run dev` | Launch local development server on `http://localhost:3000` |
-| `npm run build` | Next.js optimized production build |
-| `npm run start` | Start production server with security headers active |
-| `npm run lint` | Run ESLint validation |
+| Command             | Action                                                       |
+| :------------------ | :----------------------------------------------------------- |
+| `npm run dev`       | Launch local development server on `http://localhost:3000`   |
+| `npm run build`     | Next.js optimized production build                           |
+| `npm run start`     | Start production server with security headers active         |
+| `npm run lint`      | Run ESLint validation                                        |
 | `npm run typecheck` | Run TypeScript strict compiler verification (`tsc --noEmit`) |
-| `npm run format` | Auto-format codebase using Prettier |
-| `npm test` | Run complete Vitest suite (all test files) |
+| `npm run format`    | Auto-format codebase using Prettier                          |
+| `npm test`          | Run complete Vitest suite (all test files)                   |
 
 ---
 
@@ -223,7 +223,12 @@ Configure environment variables in `.env.local` (never committed to version cont
 - **Input Sanitization**: All API routes enforce strict Zod schemas with payload size caps ($\le 2000$ bytes) and string length bounds ($\le 1000$ chars).
 - **Prompt Injection Defense**: User input is quarantined within `<user_event_brief>` and `<event_context>` XML tags with system-level instruction boundaries.
 - **Plain Text Rendering**: AI responses are rendered exclusively as plain text strings (`{text}`); zero usage of `dangerouslySetInnerHTML`.
-- **Security Headers**: `next.config.mjs` applies strict CSP (`default-src 'self'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Security Headers & Hardened CSP**: `next.config.mjs` applies strict CSP with `'unsafe-eval'` removed, `connect-src 'self'`, `object-src 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Security Audit & Dependencies**:
+  - `postcss` overridden to `^8.5.32` via package.json `overrides` to eliminate transitive CSS parsing advisories.
+  - Next.js 14 upstream advisories: Kept on `next@14.2.35` (major upgrades to Next 15/16 prohibited by competition rules); application does not expose untrusted remote image optimizers or object deserialization in Server Actions.
+  - ESLint 8 transitives (`glob`, `minimatch`): Dev-time linting dependencies only; excluded from production bundles.
+  - Full threat model and mitigations detailed in [SECURITY.md](SECURITY.md).
 - **Accessibility (a11y)**:
   - Valid `lang="en"`, skip-to-content keyboard bypass.
   - WAI-ARIA tab pattern (`tablist`, `tab`, `tabpanel`) with full ArrowLeft/ArrowRight keyboard support.

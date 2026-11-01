@@ -7,10 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
 import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';
-import {
-  MAX_EVENT_BUDGET_INR,
-  MAX_GUEST_COUNT,
-} from '../../../lib/constants';
+import { MAX_EVENT_BUDGET_INR, MAX_GUEST_COUNT } from '../../../lib/constants';
 
 export const maxDuration = 30;
 

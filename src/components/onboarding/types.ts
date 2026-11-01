@@ -16,4 +16,4 @@ export const OCCASIONS = [
   'other',
 ] as const;
 
-export type OccasionType = typeof OCCASIONS[number];
+export type OccasionType = (typeof OCCASIONS)[number];

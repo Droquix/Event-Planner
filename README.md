@@ -235,3 +235,29 @@ _Note: If `OPENROUTER_API_KEY` is omitted, empty, or fails, the application seam
   - Real-time Screen Reader announcements via `LiveRegion` (`role="status"`, `aria-live="polite"`).
   - Status indicators use text labels and pill badges (never color alone).
   - Respects `@media (prefers-reduced-motion: reduce)`.
+
+---
+
+## 9. Quality Gates
+
+The codebase enforces strict automated quality standards:
+
+```bash
+# Typecheck TypeScript without emitting output
+npm run typecheck
+
+# Lint with ESLint and SonarJS (complexity <= 10, no duplicates, max lines)
+npm run lint
+
+# Run all unit, integration, and accessibility tests
+npm test
+
+# Run tests with code coverage analysis
+npm run test:coverage
+
+# Full automated CI verification gate
+npm run check
+
+# Check for unused exports and dependencies
+npm run knip
+```

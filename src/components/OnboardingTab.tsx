@@ -1,17 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Field, SelectField, Card, WarningList, AIBadge } from './ui';
 import { SparklesIcon, CalendarIcon } from './icons';
+import type { EventSetup } from '../types/plan';
 
-export interface EventSetup {
-  occasion: string;
-  date: string;
-  budget: string;
-  guestCount: string;
-  city: string;
-  priorities: string[];
-}
+export type { EventSetup };
 
 const OCCASIONS = [
   '', 'wedding', 'anniversary', 'birthday', 'party', 'graduation',
@@ -35,12 +29,19 @@ interface Props {
 }
 
 export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) {
-  const [text, setText] = useState(
-    'We are planning a wedding in Mumbai for around 200 guests on 15 February 2027. Budget is 25 lakhs. Top priorities are food and photography.'
-  );
+  const [text, setText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
-  const [aiDemo, setAiDemo] = useState<boolean | undefined>(true);
+  const [aiDemo, setAiDemo] = useState<boolean | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      // Abort any in-flight request when navigating tabs or unmounting
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   function set(field: keyof EventSetup, value: EventSetup[keyof EventSetup]) {
     onSetupChange({ ...setup, [field]: value });
@@ -55,16 +56,40 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
     }
   }
 
+  function handleLoadSample() {
+    setText(
+      'We are planning a wedding in Mumbai for around 200 guests on 15 February 2027. Budget is 25 lakhs. Top priorities are food and photography.'
+    );
+    setParseError('');
+  }
+
   async function handleParse() {
-    if (!text.trim()) return;
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setParseError('Please enter an event description before auto-filling.');
+      return;
+    }
+
+    // Cancel in-flight request if user clicks again
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const currentReqId = ++requestIdRef.current;
     setParsing(true);
     setParseError('');
+
     try {
       const res = await fetch('/api/parse-intake', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: trimmed }),
+        signal: controller.signal,
       });
+
+      // Ignore stale response if a newer request has started
+      if (currentReqId !== requestIdRef.current) return;
+
       const json = await res.json();
       if (json.error) {
         setParseError(json.error);
@@ -72,18 +97,36 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
       }
       const data = json.data || json;
       setAiDemo(typeof json.demo === 'boolean' ? json.demo : undefined);
+
+      const parsedBudget =
+        data.budget != null && !isNaN(Number(data.budget)) && Number(data.budget) > 0
+          ? String(data.budget)
+          : setup.budget;
+
+      const parsedGuests =
+        data.guestCount != null && !isNaN(Number(data.guestCount)) && Number(data.guestCount) >= 1
+          ? String(data.guestCount)
+          : setup.guestCount;
+
       onSetupChange({
-        occasion:   data.occasion   || setup.occasion,
-        date:       data.date       || setup.date,
-        budget:     data.budget     != null ? String(data.budget) : setup.budget,
-        guestCount: data.guestCount != null ? String(data.guestCount) : setup.guestCount,
-        city:       data.city       || setup.city,
-        priorities: data.priorities?.length ? data.priorities : setup.priorities,
+        occasion:   typeof data.occasion === 'string' && data.occasion.trim() ? data.occasion.trim().toLowerCase() : setup.occasion,
+        date:       typeof data.date === 'string' && data.date.trim() ? data.date.trim() : setup.date,
+        budget:     parsedBudget,
+        guestCount: parsedGuests,
+        city:       typeof data.city === 'string' && data.city.trim() ? data.city.trim() : setup.city,
+        priorities: Array.isArray(data.priorities) && data.priorities.length ? data.priorities : setup.priorities,
       });
-    } catch {
-      setParseError('Network error. Please fill in the fields manually.');
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
+      if (currentReqId === requestIdRef.current) {
+        setParseError('Unable to connect to AI service. Please fill in the fields manually.');
+      }
     } finally {
-      setParsing(false);
+      if (currentReqId === requestIdRef.current) {
+        setParsing(false);
+      }
     }
   }
 
@@ -94,7 +137,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
     Number(setup.guestCount) >= 1;
 
   // Format date for display in the hero description
-  let heroDateText = '15 February 2027';
+  let heroDateText = setup.date ? setup.date : 'your upcoming date';
   if (setup.date) {
     try {
       const d = new Date(setup.date);
@@ -105,6 +148,9 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
       // fallback
     }
   }
+
+  const occasionLabel = setup.occasion ? setup.occasion.toUpperCase() : 'EVENT';
+  const occasionTitle = setup.occasion ? setup.occasion : 'event';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -121,7 +167,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
             marginBottom: 14,
           }}
         >
-          YOUR WEDDING, CLEARLY PLANNED
+          YOUR {occasionLabel}, CLEARLY PLANNED
         </p>
         <h2
           style={{
@@ -133,7 +179,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
             marginBottom: 14,
           }}
         >
-          Shape the wedding you want,<br />
+          Shape the {occasionTitle} you want,<br />
           then let the details fall into place.
         </h2>
         <p
@@ -153,7 +199,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#f8fafc', margin: 0 }}>
               Describe your event (optional)
             </h3>
             <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
@@ -173,6 +219,7 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
             id="intake-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
+            placeholder="e.g. We are planning a wedding in Mumbai for around 200 guests on 15 February 2027. Budget is 25 lakhs. Top priorities are food and photography."
             rows={4}
             style={{
               background: '#070d19',
@@ -226,6 +273,31 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
             >
               <SparklesIcon size={14} color="#070d19" />
               <span>{parsing ? 'Analyzing with AI…' : 'Auto-fill fields'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLoadSample}
+              style={{
+                background: 'transparent',
+                color: '#94a3b8',
+                border: '1px solid #1e293b',
+                borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#f8fafc';
+                e.currentTarget.style.borderColor = '#334155';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#94a3b8';
+                e.currentTarget.style.borderColor = '#1e293b';
+              }}
+            >
+              Load sample brief
             </button>
             <AIBadge demo={aiDemo} loading={parsing} />
           </div>

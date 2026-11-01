@@ -96,7 +96,14 @@ function parseDateToUtcMs(inputDate: string | Date): number {
   if (typeof inputDate === 'string') {
     const parts = inputDate.split('-').map(Number);
     if (parts.length === 3 && !parts.some(isNaN)) {
-      return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+      const year = parts[0];
+      const month = parts[1] - 1;
+      const day = parts[2];
+      const d = new Date(Date.UTC(year, month, day));
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month && d.getUTCDate() === day) {
+        return d.getTime();
+      }
+      throw new Error(`Invalid date provided: "${String(inputDate)}"`);
     }
   }
   const d = new Date(inputDate);
@@ -372,6 +379,9 @@ export function buildWeddingTimelineWithFeasibility(
   customTemplate: TaskTemplate[] = WEDDING_TASK_TEMPLATE,
   todayDate: string | Date = new Date()
 ): FeasibilityCheckResult {
+  const eventMs = parseDateToUtcMs(eventDate);
+  const todayMs = parseDateToUtcMs(todayDate);
+
   const tasksWithDeadlines: Task[] = customTemplate.map((t) => ({
     ...t,
     status: t.status ?? 'pending',
@@ -379,7 +389,17 @@ export function buildWeddingTimelineWithFeasibility(
   }));
 
   const sortedTasks = sortTasksTopologically(tasksWithDeadlines);
-  return checkTimelineFeasibility(sortedTasks, todayDate);
+  const check = checkTimelineFeasibility(sortedTasks, todayDate);
+
+  if (eventMs < todayMs) {
+    const formatted = typeof eventDate === 'string' ? eventDate : eventDate.toISOString().split('T')[0];
+    check.warnings.unshift(
+      `Event date (${formatted}) is in the past. All milestone lead times are elapsed.`
+    );
+    check.isFeasible = false;
+  }
+
+  return check;
 }
 
 /**

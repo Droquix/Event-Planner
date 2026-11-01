@@ -185,10 +185,10 @@ function getMinimumFloor(budget: number): number {
 export function createBudgetPlan(input: CreateBudgetInput): BudgetPlan {
   const { totalBudget, guestCount, occasion, priorities = [] } = input;
 
-  if (totalBudget <= 0) {
+  if (!Number.isFinite(totalBudget) || totalBudget <= 0) {
     throw new Error('Total budget must be greater than zero.');
   }
-  if (guestCount < 1) {
+  if (!Number.isFinite(guestCount) || guestCount < 1) {
     throw new Error('Guest count must be at least 1.');
   }
 
@@ -275,10 +275,10 @@ export function recalculate(
   const newGuests = changes.guestCount ?? plan.guestCount;
   const newPriorities = changes.priorities ?? plan.priorities;
 
-  if (newBudget <= 0) {
+  if (!Number.isFinite(newBudget) || newBudget <= 0) {
     throw new Error('New total budget must be greater than zero.');
   }
-  if (newGuests < 1) {
+  if (!Number.isFinite(newGuests) || newGuests < 1) {
     throw new Error('New guest count must be at least 1.');
   }
 

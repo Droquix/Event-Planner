@@ -34,36 +34,49 @@ export async function POST(req: NextRequest) {
     }
 
     const rawBody = await req.text();
-    if (rawBody.length > 1000) {
+    if (rawBody.length > 2000) {
       return NextResponse.json(
         { error: 'Input is too long. Please limit to 1000 characters.' },
         { status: 400 }
       );
     }
 
-    let body: {
-      category?: string;
-      missingInfo?: string[];
-      vendorName?: string;
-    };
+    let parsedJson: unknown;
     try {
-      body = JSON.parse(rawBody);
+      parsedJson = JSON.parse(rawBody);
     } catch {
       return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
     }
 
-    const category = body.category?.trim() || 'services';
-    const missingInfo = Array.isArray(body.missingInfo) ? body.missingInfo.filter(Boolean) : [];
-    const vendorName = body.vendorName?.trim() || undefined;
+    const InputSchema = z.object({
+      category: z.string().max(50),
+      missingInfo: z.array(z.string().max(100)).max(20).optional(),
+      vendorName: z.string().max(100).optional(),
+    });
+
+    const validation = InputSchema.safeParse(parsedJson);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.issues?.[0]?.message || 'Invalid vendor input.' },
+        { status: 400 }
+      );
+    }
+
+    const category = validation.data.category.trim() || 'services';
+    const missingInfo = validation.data.missingInfo?.filter(Boolean) || [];
+    const vendorName = validation.data.vendorName?.trim() || undefined;
 
     const demoFallback: VendorQuestionResponse = {
       message: generateDemoMessage(category, missingInfo, vendorName),
     };
 
-    const userPrompt = `Vendor Category: ${category}
-${vendorName ? `Vendor Name: ${vendorName}` : ''}
-Missing Information Items:
-${missingInfo.length ? missingInfo.map((item) => `- ${item}`).join('\n') : '- Commercial payment and cancellation terms'}
+    const userPrompt = `Vendor details:
+<vendor_context>
+- Category: ${category}
+${vendorName ? `- Name: ${vendorName}` : ''}
+- Missing Information Items:
+${missingInfo.length ? missingInfo.map((item) => `  * ${item}`).join('\n') : '  * Commercial payment and cancellation terms'}
+</vendor_context>
 
 TASK:
 Write a short, professional, and polite message/email that the client can send to the vendor asking for these specific missing details before finalizing the booking. Keep it warm and concise (under 120 words).
@@ -75,7 +88,7 @@ Return valid JSON:
 
     const result = await callAI<VendorQuestionResponse>({
       systemPrompt:
-        'You are a professional event coordinator. Draft polite, effective vendor inquiry messages. Output only valid JSON.',
+        'You are a professional event coordinator. Draft polite, effective vendor inquiry messages based on <vendor_context>. Output only valid JSON.',
       userPrompt,
       schema: QuestionSchema,
       demoFallback,

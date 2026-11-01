@@ -17,6 +17,7 @@ import type { EventSetup } from './OnboardingTab';
 
 interface Props {
   setup: EventSetup;
+  onGoToOnboarding?: () => void;
 }
 
 interface IdeaItem {
@@ -53,11 +54,11 @@ const DEFAULT_IDEAS: IdeaItem[] = [
   },
 ];
 
-export default function BudgetTab({ setup }: Props) {
+export default function BudgetTab({ setup, onGoToOnboarding }: Props) {
   const [plan, setPlan] = useState<BudgetPlan | null>(null);
   const [error, setError] = useState('');
-  const [guests, setGuests] = useState(setup.guestCount || '200');
-  const [budget, setBudget] = useState(setup.budget || '2500000');
+  const [guests, setGuests] = useState(setup.guestCount || '');
+  const [budget, setBudget] = useState(setup.budget || '');
   const [differences, setDifferences] = useState<BudgetDifference[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const diffRef = useRef<HTMLDivElement>(null);
@@ -66,11 +67,23 @@ export default function BudgetTab({ setup }: Props) {
   const [aiExplanation, setAiExplanation] = useState<string>('');
   const [explainLoading, setExplainLoading] = useState(false);
   const [explainDemo, setExplainDemo] = useState<boolean | undefined>(undefined);
+  const explainAbortRef = useRef<AbortController | null>(null);
+  const explainReqIdRef = useRef(0);
 
-  // AI ideas state (preloaded with sample response to match screenshot)
+  // AI ideas state
   const [ideas, setIdeas] = useState<IdeaItem[]>(DEFAULT_IDEAS);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasDemo, setIdeasDemo] = useState<boolean | undefined>(true);
+  const ideasAbortRef = useRef<AbortController | null>(null);
+  const ideasReqIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      // Abort in-flight requests when tab is unmounted or switched
+      explainAbortRef.current?.abort();
+      ideasAbortRef.current?.abort();
+    };
+  }, []);
 
   // Build initial plan from setup
   useEffect(() => {
@@ -78,13 +91,20 @@ export default function BudgetTab({ setup }: Props) {
     setDifferences([]);
     setAiExplanation('');
     setExplainDemo(undefined);
-    const g = Number(setup.guestCount) || 200;
-    const b = Number(setup.budget) || 2500000;
+
+    const b = Number(setup.budget);
+    const g = Number(setup.guestCount);
+
+    if (!Number.isFinite(b) || b <= 0 || !Number.isFinite(g) || g < 1) {
+      setPlan(null);
+      return;
+    }
+
     try {
       const p = createBudgetPlan({
         totalBudget: b,
         guestCount: g,
-        occasion: setup.occasion || 'wedding',
+        occasion: setup.occasion || 'event',
         priorities: setup.priorities?.length ? setup.priorities : ['food', 'photography'],
       });
       setPlan(p);
@@ -97,49 +117,75 @@ export default function BudgetTab({ setup }: Props) {
 
   async function fetchExplanation(diffs: BudgetDifference[]) {
     if (!diffs.length) return;
+
+    explainAbortRef.current?.abort();
+    const controller = new AbortController();
+    explainAbortRef.current = controller;
+
+    const currentReqId = ++explainReqIdRef.current;
     setExplainLoading(true);
+
     try {
       const res = await fetch('/api/explain-changes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ differences: diffs }),
+        signal: controller.signal,
       });
+
+      if (currentReqId !== explainReqIdRef.current) return;
+
       const json = await res.json();
       if (json.data?.explanation) {
         setAiExplanation(json.data.explanation);
         setExplainDemo(json.demo);
       }
-    } catch {
-      // Gracefully ignore failure
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
     } finally {
-      setExplainLoading(false);
+      if (currentReqId === explainReqIdRef.current) {
+        setExplainLoading(false);
+      }
     }
   }
 
   async function fetchIdeas() {
     if (!plan) return;
+
+    ideasAbortRef.current?.abort();
+    const controller = new AbortController();
+    ideasAbortRef.current = controller;
+
+    const currentReqId = ++ideasReqIdRef.current;
     setIdeasLoading(true);
+
     try {
       const res = await fetch('/api/ideas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          occasion: setup.occasion || 'wedding',
-          city: setup.city || 'Mumbai',
+          occasion: setup.occasion || 'event',
+          city: setup.city || 'local area',
           priorities: setup.priorities,
           guestCount: plan.guestCount,
           surplus: plan.surplus ?? 0,
         }),
+        signal: controller.signal,
       });
+
+      if (currentReqId !== ideasReqIdRef.current) return;
+
       const json = await res.json();
       if (Array.isArray(json.data?.ideas)) {
         setIdeas(json.data.ideas);
         setIdeasDemo(json.demo);
       }
-    } catch {
-      // Gracefully fallback to default ideas
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
     } finally {
-      setIdeasLoading(false);
+      if (currentReqId === ideasReqIdRef.current) {
+        setIdeasLoading(false);
+      }
     }
   }
 
@@ -147,8 +193,20 @@ export default function BudgetTab({ setup }: Props) {
     if (!plan) return;
     const g = Number(guests);
     const b = Number(budget);
-    if (!g || !b) {
-      setError('Guest count and budget must be positive numbers.');
+    if (!Number.isFinite(g) || g < 1) {
+      setError('Guest count must be at least 1.');
+      return;
+    }
+    if (g > 100000) {
+      setError('Guest count exceeds maximum limit (100,000).');
+      return;
+    }
+    if (!Number.isFinite(b) || b <= 0) {
+      setError('Total budget must be greater than zero.');
+      return;
+    }
+    if (b > 1000000000) {
+      setError('Budget exceeds maximum limit of ₹100 Crore.');
       return;
     }
     setError('');
@@ -192,8 +250,35 @@ export default function BudgetTab({ setup }: Props) {
 
   if (!plan) {
     return (
-      <div style={{ color: '#94a3b8', padding: 20, textAlign: 'center' }}>
-        {error ? <p role="alert" style={{ color: '#fca5a5' }}>{error}</p> : <p>Loading budget breakdown...</p>}
+      <div style={{ padding: '20px 0' }}>
+        <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ maxWidth: 440, margin: '0 auto' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#f8fafc', marginBottom: 8 }}>
+              No budget plan configured
+            </h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 20 }}>
+              Complete the event details in Onboarding with your target budget and guest count to generate an intelligent allocation breakdown.
+            </p>
+            {onGoToOnboarding && (
+              <button
+                type="button"
+                onClick={onGoToOnboarding}
+                style={{
+                  background: '#60a5fa',
+                  color: '#070d19',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '9px 18px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Go to Onboarding →
+              </button>
+            )}
+          </div>
+        </Card>
       </div>
     );
   }

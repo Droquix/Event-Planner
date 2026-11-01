@@ -12,6 +12,7 @@ import type { EventSetup } from './OnboardingTab';
 
 interface Props {
   setup: EventSetup;
+  onGoToOnboarding?: () => void;
 }
 
 // Tasks that represent a vendor booking (can be cancelled)
@@ -19,16 +20,21 @@ const VENDOR_TASK_IDS = new Set([
   'book-venue', 'hire-caterer', 'hire-photographer', 'hire-decorator',
 ]);
 
-export default function TimelineTab({ setup }: Props) {
+export default function TimelineTab({ setup, onGoToOnboarding }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [lastCancelMsg, setLastCancelMsg] = useState('');
   const [filterActive, setFilterActive] = useState(false);
 
-  const eventDate = setup.date || '2027-02-15';
+  const eventDate = setup.date;
 
   useEffect(() => {
+    if (!eventDate) {
+      setTasks([]);
+      setWarnings([]);
+      return;
+    }
     setError('');
     setLastCancelMsg('');
     try {
@@ -75,6 +81,41 @@ export default function TimelineTab({ setup }: Props) {
   const displayedTasks = filterActive
     ? tasks.filter((t) => t.status === 'overdue' || t.status === 'at_risk')
     : tasks;
+
+  if (!eventDate) {
+    return (
+      <div style={{ padding: '20px 0' }}>
+        <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ maxWidth: 440, margin: '0 auto' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#f8fafc', marginBottom: 8 }}>
+              No event date selected
+            </h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 20 }}>
+              Set an event date in Onboarding to calculate milestones backwards, evaluate lead times, and monitor dependencies.
+            </p>
+            {onGoToOnboarding && (
+              <button
+                type="button"
+                onClick={onGoToOnboarding}
+                style={{
+                  background: '#60a5fa',
+                  color: '#070d19',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '9px 18px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Go to Onboarding →
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (error) {
     return <p role="alert" style={{ color: '#fca5a5', padding: 20 }}>{error}</p>;

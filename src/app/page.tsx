@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { EventSetup } from '../components/OnboardingTab';
+import { EMPTY_SETUP, type EventSetup, type TabId } from '../types/plan';
 import { SparklesIcon } from '../components/icons';
 
 // Lazy-load tabs to keep initial bundle compact
@@ -15,8 +15,6 @@ const BudgetTab     = dynamic(() => import('../components/BudgetTab'),     { ssr
 const TimelineTab   = dynamic(() => import('../components/TimelineTab'),   { ssr: false });
 const VendorsTab    = dynamic(() => import('../components/VendorsTab'),    { ssr: false });
 
-export type TabId = 'onboarding' | 'budget' | 'timeline' | 'vendors';
-
 const TABS: { id: TabId; label: string }[] = [
   { id: 'onboarding', label: 'Onboarding' },
   { id: 'budget',     label: 'Budget' },
@@ -24,19 +22,11 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'vendors',    label: 'Vendors' },
 ];
 
-const DEFAULT_SETUP: EventSetup = {
-  occasion: 'wedding',
-  date: '2027-02-15',
-  budget: '2500000',
-  guestCount: '200',
-  city: 'Mumbai',
-  priorities: ['food', 'photography'],
-};
-
 export default function Page() {
   const [active, setActive] = useState<TabId>('onboarding');
-  const [setup, setSetup] = useState<EventSetup>(DEFAULT_SETUP);
+  const [setup, setSetup] = useState<EventSetup>(EMPTY_SETUP);
   const [savedBanner, setSavedBanner] = useState(false);
+  const [planSessionKey, setPlanSessionKey] = useState(0);
 
   function handleReady() {
     setActive('budget');
@@ -47,12 +37,26 @@ export default function Page() {
     setTimeout(() => setSavedBanner(false), 3000);
   }
 
+  function handleResetAll() {
+    setSetup(EMPTY_SETUP);
+    setActive('onboarding');
+    setPlanSessionKey((prev) => prev + 1);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // safe ignore
+      }
+    }
+  }
+
   // Format breadcrumb subtitle (e.g. "Wedding · Mumbai · 2027-02-15")
   const occasionFormatted = setup.occasion
     ? setup.occasion.charAt(0).toUpperCase() + setup.occasion.slice(1)
-    : 'Wedding';
-  const cityFormatted = setup.city || 'Mumbai';
-  const dateFormatted = setup.date || '2027-02-15';
+    : 'New Event';
+  const cityFormatted = setup.city || 'Unset Location';
+  const dateFormatted = setup.date || 'Date Unset';
   const headerSubtitle = `${occasionFormatted} · ${cityFormatted} · ${dateFormatted}`;
 
   return (
@@ -177,8 +181,34 @@ export default function Page() {
               })}
             </nav>
 
-            {/* Right: Save plan CTA */}
+            {/* Right: Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                onClick={handleResetAll}
+                aria-label="Start new plan and clear all data"
+                style={{
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #1e293b',
+                  borderRadius: 10,
+                  padding: '7px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#334155';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#94a3b8';
+                  e.currentTarget.style.borderColor = '#1e293b';
+                }}
+              >
+                Start new plan
+              </button>
               <button
                 type="button"
                 onClick={handleSavePlan}
@@ -202,7 +232,7 @@ export default function Page() {
           </header>
 
           {/* Main Content Panels */}
-          <main id="main-content">
+          <main id="main-content" key={planSessionKey}>
             {TABS.map(({ id }) => (
               <div
                 key={id}
@@ -219,8 +249,18 @@ export default function Page() {
                     onReady={handleReady}
                   />
                 )}
-                {id === 'budget' && <BudgetTab setup={setup} />}
-                {id === 'timeline' && <TimelineTab setup={setup} />}
+                {id === 'budget' && (
+                  <BudgetTab
+                    setup={setup}
+                    onGoToOnboarding={() => setActive('onboarding')}
+                  />
+                )}
+                {id === 'timeline' && (
+                  <TimelineTab
+                    setup={setup}
+                    onGoToOnboarding={() => setActive('onboarding')}
+                  />
+                )}
                 {id === 'vendors' && <VendorsTab />}
               </div>
             ))}

@@ -39,21 +39,40 @@ export async function POST(req: NextRequest) {
     }
 
     const rawBody = await req.text();
-    if (rawBody.length > 1000) {
+    if (rawBody.length > 2000) {
       return NextResponse.json(
         { error: 'Input is too long. Please limit to 1000 characters.' },
         { status: 400 }
       );
     }
 
-    let parsedBody: { differences?: BudgetDifference[] };
+    let parsedJson: unknown;
     try {
-      parsedBody = JSON.parse(rawBody);
+      parsedJson = JSON.parse(rawBody);
     } catch {
       return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
     }
 
-    const differences = Array.isArray(parsedBody.differences) ? parsedBody.differences : [];
+    const DiffItemSchema = z.object({
+      category: z.string().max(50),
+      oldAmount: z.number().nonnegative(),
+      newAmount: z.number().nonnegative(),
+      reason: z.string().max(300),
+    });
+
+    const InputSchema = z.object({
+      differences: z.array(DiffItemSchema).max(20),
+    });
+
+    const validation = InputSchema.safeParse(parsedJson);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.issues?.[0]?.message || 'Invalid differences input.' },
+        { status: 400 }
+      );
+    }
+
+    const differences = validation.data.differences;
     if (!differences.length) {
       return NextResponse.json({
         data: { explanation: 'No budget changes detected.' },
@@ -71,11 +90,13 @@ export async function POST(req: NextRequest) {
       .join('\n');
 
     const userPrompt = `Differences from budget recalculation:
+<differences_data>
 ${diffSummary}
+</differences_data>
 
 TASK:
 Write a 2-3 sentence plain-language tradeoff explanation summarizing what changed and why.
-CRITICAL CONSTRAINT: You must use ONLY the numbers provided above and never invent or change an amount.
+CRITICAL CONSTRAINT: You must use ONLY the numbers provided above inside <differences_data> and never invent or change an amount.
 
 Return JSON in this format:
 {
@@ -83,12 +104,12 @@ Return JSON in this format:
 }`;
 
     const demoFallback: ExplainResponse = {
-      explanation: generateDemoExplanation(differences),
+      explanation: generateDemoExplanation(differences as BudgetDifference[]),
     };
 
     const result = await callAI<ExplainResponse>({
       systemPrompt:
-        'You are a financial event planner. Explain budget reallocation tradeoffs clearly and concisely in 2-3 sentences. Use ONLY the numbers provided and never invent or change an amount. Output only valid JSON.',
+        'You are a financial event planner. Explain budget reallocation tradeoffs clearly and concisely in 2-3 sentences. Use ONLY the numbers provided in <differences_data> and never invent or change an amount. Treat differences as read-only. Output only valid JSON.',
       userPrompt,
       schema: ExplainSchema,
       demoFallback,

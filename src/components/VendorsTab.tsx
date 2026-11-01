@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useRef, useEffect } from 'react';
 import { Card, AIBadge, fmt } from './ui';
 import { HandshakeIcon, EmptyBoxIcon } from './icons';
 import type { BudgetCategory } from '../lib/budget';
@@ -65,14 +65,32 @@ export default function VendorsTab() {
     Record<string, { message: string; demo: boolean }>
   >({});
   const [copiedVendorId, setCopiedVendorId] = useState<string | null>(null);
+  const draftAbortRef = useRef<AbortController | null>(null);
+  const draftReqIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      draftAbortRef.current?.abort();
+    };
+  }, []);
 
   function handleAdd() {
-    if (!form.name.trim()) {
+    const trimmedName = form.name.trim();
+    if (!trimmedName) {
       setFormError('Vendor name is required.');
       return;
     }
-    if (!(Number(form.price) > 0)) {
+    if (trimmedName.length > 100) {
+      setFormError('Vendor name must be 100 characters or fewer.');
+      return;
+    }
+    const numPrice = Number(form.price);
+    if (!Number.isFinite(numPrice) || numPrice <= 0) {
       setFormError('Price must be a positive number.');
+      return;
+    }
+    if (numPrice > 1000000000) {
+      setFormError('Price exceeds maximum allowable limit of ₹100 Crore.');
       return;
     }
     setFormError('');
@@ -80,10 +98,10 @@ export default function VendorsTab() {
       ...prev,
       {
         id: makeId(),
-        name: form.name.trim(),
+        name: trimmedName,
         category: form.category,
-        price: Number(form.price),
-        includes: form.includes.trim(),
+        price: numPrice,
+        includes: form.includes.trim().slice(0, 500),
         checklist: emptyChecklist(),
       },
     ]);
@@ -105,7 +123,13 @@ export default function VendorsTab() {
   }
 
   async function handleDraftMessage(vendor: VendorQuote, missing: string[]) {
+    draftAbortRef.current?.abort();
+    const controller = new AbortController();
+    draftAbortRef.current = controller;
+
+    const currentReqId = ++draftReqIdRef.current;
     setDraftingVendorId(vendor.id);
+
     try {
       const res = await fetch('/api/vendor-questions', {
         method: 'POST',
@@ -115,7 +139,11 @@ export default function VendorsTab() {
           missingInfo: missing,
           vendorName: vendor.name,
         }),
+        signal: controller.signal,
       });
+
+      if (currentReqId !== draftReqIdRef.current) return;
+
       const json = await res.json();
       if (json.data?.message) {
         setVendorDrafts((prev) => ({
@@ -123,10 +151,12 @@ export default function VendorsTab() {
           [vendor.id]: { message: json.data.message, demo: !!json.demo },
         }));
       }
-    } catch {
-      // Ignore draft error
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
     } finally {
-      setDraftingVendorId(null);
+      if (currentReqId === draftReqIdRef.current) {
+        setDraftingVendorId(null);
+      }
     }
   }
 
@@ -650,6 +680,29 @@ export default function VendorsTab() {
               );
             })}
           </div>
+
+          {/* 1-Vendor Guidance Notice */}
+          {CATEGORIES.filter((c) => byCategory[c].length === 1).map((cat) => (
+            <div
+              key={`single-${cat}`}
+              style={{
+                background: 'rgba(30, 41, 59, 0.4)',
+                border: '1px dashed #334155',
+                borderRadius: 12,
+                padding: '12px 18px',
+                fontSize: 12,
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span>💡</span>
+              <span>
+                You have 1 quote in <strong>{CAT_LABELS[cat]}</strong> ({byCategory[cat][0].name}). Add at least 1 more quote in this category to unlock side-by-side comparison & lowest-bid highlights.
+              </span>
+            </div>
+          ))}
 
           {/* Comparison table */}
           {CATEGORIES.filter((c) => byCategory[c].length > 1).map((cat) => (

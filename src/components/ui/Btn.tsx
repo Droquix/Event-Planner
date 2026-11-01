@@ -7,68 +7,82 @@ export interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   size?: 'sm' | 'md' | 'lg';
 }
 
-function getButtonStyles(variant: BtnProps['variant'], hov: boolean) {
-  switch (variant) {
-    case 'secondary':
-      return {
-        bg: hov ? '#1e293b' : '#131c31',
-        color: '#cbd5e1',
-        border: '1px solid #334155',
-        radius: 8,
-        fontWeight: 500,
-        fontSize: 13,
-      };
-    case 'danger':
-      return {
-        bg: hov ? '#2a0e17' : 'transparent',
-        color: '#f87171',
-        border: '1px solid rgba(244, 63, 94, 0.4)',
-        radius: 9999,
-        fontWeight: 600,
-        fontSize: 11,
-      };
-    case 'outline-pill':
-      return {
-        bg: hov ? '#1e293b' : 'transparent',
-        color: '#cbd5e1',
-        border: '1px solid #334155',
-        radius: 9999,
-        fontWeight: 500,
-        fontSize: 12,
-      };
-    case 'ghost':
-      return {
-        bg: hov ? '#172339' : 'transparent',
-        color: '#cbd5e1',
-        border: '1px solid #1e293b',
-        radius: 8,
-        fontWeight: 500,
-        fontSize: 13,
-      };
-    default:
-      return {
-        bg: hov ? '#3b82f6' : '#60a5fa',
-        color: '#070d19',
-        border: 'none',
-        radius: 8,
-        fontWeight: 700,
-        fontSize: 13,
-      };
-  }
+interface ButtonConfig {
+  bg: string;
+  hoverBg: string;
+  color: string;
+  border: string;
+  radius: number;
+  fontWeight: number;
+  fontSize: number;
 }
+
+const BUTTON_CONFIGS: Record<string, ButtonConfig> = {
+  primary: {
+    bg: '#60a5fa',
+    hoverBg: '#3b82f6',
+    color: '#070d19',
+    border: 'none',
+    radius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+  },
+  secondary: {
+    bg: '#131c31',
+    hoverBg: '#1e293b',
+    color: '#cbd5e1',
+    border: '1px solid #334155',
+    radius: 8,
+    fontWeight: 500,
+    fontSize: 13,
+  },
+  danger: {
+    bg: 'transparent',
+    hoverBg: '#2a0e17',
+    color: '#f87171',
+    border: '1px solid rgba(244, 63, 94, 0.4)',
+    radius: 9999,
+    fontWeight: 600,
+    fontSize: 11,
+  },
+  'outline-pill': {
+    bg: 'transparent',
+    hoverBg: '#1e293b',
+    color: '#cbd5e1',
+    border: '1px solid #334155',
+    radius: 9999,
+    fontWeight: 500,
+    fontSize: 12,
+  },
+  ghost: {
+    bg: 'transparent',
+    hoverBg: '#172339',
+    color: '#cbd5e1',
+    border: '1px solid #1e293b',
+    radius: 8,
+    fontWeight: 500,
+    fontSize: 13,
+  },
+};
+
+const PADDINGS: Record<'sm' | 'md' | 'lg', string> = {
+  sm: '6px 14px',
+  md: '8px 18px',
+  lg: '10px 24px',
+};
 
 /**
  * Reusable design-system button supporting primary, secondary, danger, ghost, and pill variants.
  */
 export function Btn({ variant = 'primary', size = 'md', children, style, ...rest }: BtnProps) {
   const [hov, setHov] = React.useState(false);
-  const cfg = getButtonStyles(variant, hov);
-  const pad = size === 'sm' ? '6px 14px' : size === 'lg' ? '10px 24px' : '8px 18px';
+  const cfg = BUTTON_CONFIGS[variant] ?? BUTTON_CONFIGS.primary;
+  const pad = PADDINGS[size];
 
   return (
     <button
       style={{
-        background: cfg.bg,
+        background: hov ? cfg.hoverBg : cfg.bg,
         color: cfg.color,
         border: cfg.border,
         borderRadius: cfg.radius,

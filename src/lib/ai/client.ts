@@ -7,6 +7,14 @@ import { AI_REQUEST_TIMEOUT_MS } from '../constants';
 import { cleanAIResponse } from './cleaner';
 import type { AICallConfig, AICallResult } from './types';
 
+interface AttemptOptions<T> {
+  client: OpenAI;
+  model: string;
+  systemPrompt?: string;
+  userPrompt: string;
+  schema: z.ZodType<T>;
+}
+
 /**
  * Creates an OpenAI client configured for OpenRouter.
  */
@@ -25,22 +33,16 @@ function getOpenAIClient(apiKey: string): OpenAI {
 /**
  * Executes a single completion attempt and parses JSON response against schema.
  */
-async function executeAttempt<T>(
-  client: OpenAI,
-  model: string,
-  systemPrompt: string | undefined,
-  userPrompt: string,
-  schema: z.ZodType<T>
-): Promise<T> {
+async function executeAttempt<T>(opts: AttemptOptions<T>): Promise<T> {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-  if (systemPrompt) {
-    messages.push({ role: 'system', content: systemPrompt });
+  if (opts.systemPrompt) {
+    messages.push({ role: 'system', content: opts.systemPrompt });
   }
-  messages.push({ role: 'user', content: userPrompt });
+  messages.push({ role: 'user', content: opts.userPrompt });
 
-  const completion = await client.chat.completions.create(
+  const completion = await opts.client.chat.completions.create(
     {
-      model,
+      model: opts.model,
       messages,
       temperature: 0.2,
     },
@@ -50,7 +52,7 @@ async function executeAttempt<T>(
   const rawContent = completion.choices?.[0]?.message?.content ?? '';
   const cleaned = cleanAIResponse(rawContent);
   const parsedJson = JSON.parse(cleaned);
-  return schema.parse(parsedJson);
+  return opts.schema.parse(parsedJson);
 }
 
 /**
@@ -72,25 +74,20 @@ export async function callAI<T>(config: AICallConfig<T>): Promise<AICallResult<T
     return { data: config.demoFallback, demo: true };
   }
 
+  const opts: AttemptOptions<T> = {
+    client,
+    model,
+    systemPrompt: config.systemPrompt,
+    userPrompt: config.userPrompt,
+    schema: config.schema,
+  };
+
   try {
-    const data = await executeAttempt(
-      client,
-      model,
-      config.systemPrompt,
-      config.userPrompt,
-      config.schema
-    );
+    const data = await executeAttempt(opts);
     return { data, demo: false };
   } catch {
-    // Retry once
     try {
-      const data = await executeAttempt(
-        client,
-        model,
-        config.systemPrompt,
-        config.userPrompt,
-        config.schema
-      );
+      const data = await executeAttempt(opts);
       return { data, demo: false };
     } catch {
       return { data: config.demoFallback, demo: true };

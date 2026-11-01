@@ -22,15 +22,66 @@ const TABS: readonly { id: TabId; label: string }[] = [
   { id: 'vendors', label: 'Vendors' },
 ] as const;
 
+const SkipLink: React.FC = () => (
+  <a
+    href="#main-content"
+    style={{
+      position: 'absolute',
+      left: '-9999px',
+      top: 4,
+      zIndex: 9999,
+      background: '#60a5fa',
+      color: '#070d19',
+      padding: '8px 16px',
+      borderRadius: 6,
+      fontWeight: 700,
+      fontSize: 13,
+    }}
+    onFocus={(e) => (e.currentTarget.style.left = '4px')}
+    onBlur={(e) => (e.currentTarget.style.left = '-9999px')}
+  >
+    Skip to main content
+  </a>
+);
+
+interface PanelsProps {
+  active: TabId;
+  setup: EventSetup;
+  setSetup: (s: EventSetup) => void;
+  setActive: (t: TabId) => void;
+}
+
+const TabPanels: React.FC<PanelsProps> = ({ active, setup, setSetup, setActive }) => (
+  <>
+    {TABS.map(({ id }) => (
+      <div
+        key={id}
+        id={`panel-${id}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${id}`}
+        hidden={active !== id}
+        tabIndex={0}
+      >
+        {id === 'onboarding' && (
+          <OnboardingTab setup={setup} onSetupChange={setSetup} onReady={() => setActive('budget')} />
+        )}
+        {id === 'budget' && (
+          <BudgetTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
+        )}
+        {id === 'timeline' && (
+          <TimelineTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
+        )}
+        {id === 'vendors' && <VendorsTab />}
+      </div>
+    ))}
+  </>
+);
+
 export default function Page() {
   const [active, setActive] = useState<TabId>('onboarding');
   const [setup, setSetup] = useState<EventSetup>(EMPTY_SETUP);
   const [savedBanner, setSavedBanner] = useState(false);
   const [planSessionKey, setPlanSessionKey] = useState(0);
-
-  function handleReady() {
-    setActive('budget');
-  }
 
   function handleSavePlan() {
     setSavedBanner(true);
@@ -54,32 +105,11 @@ export default function Page() {
   const occasionFormatted = setup.occasion
     ? setup.occasion.charAt(0).toUpperCase() + setup.occasion.slice(1)
     : 'New Event';
-  const cityFormatted = setup.city || 'Unset Location';
-  const dateFormatted = setup.date || 'Date Unset';
-  const headerSubtitle = `${occasionFormatted} · ${cityFormatted} · ${dateFormatted}`;
+  const headerSubtitle = `${occasionFormatted} · ${setup.city || 'Unset Location'} · ${setup.date || 'Date Unset'}`;
 
   return (
     <>
-      <a
-        href="#main-content"
-        style={{
-          position: 'absolute',
-          left: '-9999px',
-          top: 4,
-          zIndex: 9999,
-          background: '#60a5fa',
-          color: '#070d19',
-          padding: '8px 16px',
-          borderRadius: 6,
-          fontWeight: 700,
-          fontSize: 13,
-        }}
-        onFocus={(e) => (e.currentTarget.style.left = '4px')}
-        onBlur={(e) => (e.currentTarget.style.left = '-9999px')}
-      >
-        Skip to main content
-      </a>
-
+      <SkipLink />
       <div className="bg-grid-pattern" style={{ minHeight: '100vh', padding: '24px 16px 80px' }}>
         <div style={{ maxWidth: 1040, margin: '0 auto' }}>
           <AppNavbar
@@ -93,27 +123,7 @@ export default function Page() {
           />
 
           <main id="main-content" key={planSessionKey}>
-            {TABS.map(({ id }) => (
-              <div
-                key={id}
-                id={`panel-${id}`}
-                role="tabpanel"
-                aria-labelledby={`tab-${id}`}
-                hidden={active !== id}
-                tabIndex={0}
-              >
-                {id === 'onboarding' && (
-                  <OnboardingTab setup={setup} onSetupChange={setSetup} onReady={handleReady} />
-                )}
-                {id === 'budget' && (
-                  <BudgetTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
-                )}
-                {id === 'timeline' && (
-                  <TimelineTab setup={setup} onGoToOnboarding={() => setActive('onboarding')} />
-                )}
-                {id === 'vendors' && <VendorsTab />}
-              </div>
-            ))}
+            <TabPanels active={active} setup={setup} setSetup={setSetup} setActive={setActive} />
           </main>
         </div>
       </div>

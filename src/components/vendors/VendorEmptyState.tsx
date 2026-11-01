@@ -2,15 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { InboxIcon } from '../icons';
 
+const VendorGuideBox: React.FC = () => (
+  <div
+    role="region"
+    aria-label="Vendor Management Guide"
+    style={{
+      marginTop: 20,
+      maxWidth: 440,
+      background: '#070d19',
+      border: '1px solid #1e293b',
+      borderRadius: 8,
+      padding: '14px 18px',
+      textAlign: 'left',
+      fontSize: 12,
+      color: '#94a3b8',
+      lineHeight: 1.6,
+    }}
+  >
+    <strong style={{ color: '#f8fafc', display: 'block', marginBottom: 4 }}>
+      💡 Vendor Management Tips:
+    </strong>
+    Collect 2-3 quotes per category. Use our 7-item checklist to check for hidden costs
+    (taxes, overtime, cancellation terms). Click &quot;Draft inquiry&quot; on any vendor to
+    let our AI write a polite clarification email.
+  </div>
+);
+
 export const VendorEmptyState: React.FC = () => {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
     if (!showGuideModal) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowGuideModal(false);
-      }
+      if (e.key === 'Escape') setShowGuideModal(false);
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -46,15 +70,7 @@ export const VendorEmptyState: React.FC = () => {
       <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>
         No vendors added yet.
       </h3>
-      <p
-        style={{
-          fontSize: 13,
-          color: '#64748b',
-          maxWidth: 360,
-          margin: '0 auto 20px',
-          lineHeight: 1.5,
-        }}
-      >
+      <p style={{ fontSize: 13, color: '#64748b', maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.5 }}>
         Add your first quote above to begin building a trusted wedding team.
       </p>
 
@@ -83,31 +99,7 @@ export const VendorEmptyState: React.FC = () => {
         Learn how quotes work
       </button>
 
-      {showGuideModal && (
-        <div
-          role="region"
-          aria-label="Vendor Management Guide"
-          style={{
-            marginTop: 20,
-            maxWidth: 440,
-            background: '#070d19',
-            border: '1px solid #1e293b',
-            borderRadius: 8,
-            padding: '14px 18px',
-            textAlign: 'left',
-            fontSize: 12,
-            color: '#94a3b8',
-            lineHeight: 1.6,
-          }}
-        >
-          <strong style={{ color: '#f8fafc', display: 'block', marginBottom: 4 }}>
-            💡 Vendor Management Tips:
-          </strong>
-          Collect 2-3 quotes per category. Use our 7-item checklist to check for hidden costs
-          (taxes, overtime, cancellation terms). Click &quot;Draft inquiry&quot; on any vendor to
-          let our AI write a polite clarification email.
-        </div>
-      )}
+      {showGuideModal && <VendorGuideBox />}
     </Card>
   );
 };

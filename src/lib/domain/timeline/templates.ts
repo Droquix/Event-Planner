@@ -3,9 +3,11 @@
  */
 import type { TaskTemplate } from './types';
 
+const VENUE_TASK_ID = 'book-venue';
+
 export const WEDDING_TASK_TEMPLATE: readonly TaskTemplate[] = [
   {
-    id: 'book-venue',
+    id: VENUE_TASK_ID,
     name: 'Book Wedding Venue',
     daysBeforeEvent: 180,
     dependsOn: [],
@@ -14,25 +16,25 @@ export const WEDDING_TASK_TEMPLATE: readonly TaskTemplate[] = [
     id: 'hire-caterer',
     name: 'Hire Caterer',
     daysBeforeEvent: 120,
-    dependsOn: ['book-venue'],
+    dependsOn: [VENUE_TASK_ID],
   },
   {
     id: 'hire-photographer',
     name: 'Hire Photographer & Videographer',
     daysBeforeEvent: 120,
-    dependsOn: ['book-venue'],
+    dependsOn: [VENUE_TASK_ID],
   },
   {
     id: 'send-invitations',
     name: 'Send Invitations',
     daysBeforeEvent: 90,
-    dependsOn: ['book-venue'],
+    dependsOn: [VENUE_TASK_ID],
   },
   {
     id: 'hire-decorator',
     name: 'Hire Decorator & Florist',
     daysBeforeEvent: 75,
-    dependsOn: ['book-venue'],
+    dependsOn: [VENUE_TASK_ID],
   },
   {
     id: 'finalize-guest-count',
@@ -56,6 +58,6 @@ export const WEDDING_TASK_TEMPLATE: readonly TaskTemplate[] = [
     id: 'rehearsal-walkthrough',
     name: 'Conduct Venue & Sound Rehearsal',
     daysBeforeEvent: 2,
-    dependsOn: ['book-venue', 'decor-installation-plan'],
+    dependsOn: [VENUE_TASK_ID, 'decor-installation-plan'],
   },
 ] as const;

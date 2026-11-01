@@ -3,6 +3,15 @@
  * markdown code fences, and extracting valid JSON boundaries.
  */
 
+function extractBoundedSubstring(text: string, openChar: string, closeChar: string): string | null {
+  const first = text.indexOf(openChar);
+  const last = text.lastIndexOf(closeChar);
+  if (first !== -1 && last !== -1 && last > first) {
+    return text.slice(first, last + 1);
+  }
+  return null;
+}
+
 export function cleanAIResponse(raw: string): string {
   if (!raw) return '';
 
@@ -12,25 +21,11 @@ export function cleanAIResponse(raw: string): string {
     .replace(/```$/gm, '')
     .trim();
 
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  const firstBracket = text.indexOf('[');
-  const lastBracket = text.lastIndexOf(']');
+  const objectStr = extractBoundedSubstring(text, '{', '}');
+  const arrayStr = extractBoundedSubstring(text, '[', ']');
 
-  const hasBraces = firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace;
-  const hasBrackets = firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket;
-
-  if (hasBraces && hasBrackets) {
-    return firstBrace < firstBracket
-      ? text.slice(firstBrace, lastBrace + 1)
-      : text.slice(firstBracket, lastBracket + 1);
+  if (objectStr && arrayStr) {
+    return text.indexOf('{') < text.indexOf('[') ? objectStr : arrayStr;
   }
-  if (hasBraces) {
-    return text.slice(firstBrace, lastBrace + 1);
-  }
-  if (hasBrackets) {
-    return text.slice(firstBracket, lastBracket + 1);
-  }
-
-  return text;
+  return objectStr ?? arrayStr ?? text;
 }

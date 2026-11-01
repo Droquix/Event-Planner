@@ -3,7 +3,8 @@
  * Generates 5 personalized creative ideas respecting occasion, city, priorities, guest count, and surplus.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callAI } from '../../../lib/ai';
 import { validateApiRequest, handleInternalError } from '../../../lib/api-handler';
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     const priorities = body.priorities?.length ? body.priorities.join(', ') : 'overall quality';
     const guestCount = body.guestCount || 100;
     const surplus =
-      body.surplus != null && body.surplus > 0
+      body.surplus !== undefined && body.surplus !== null && body.surplus > 0
         ? `₹${body.surplus.toLocaleString('en-IN')}`
         : 'standard buffer';
 

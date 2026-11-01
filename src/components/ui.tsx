@@ -1,43 +1,101 @@
 /**
- * Shared, accessible UI primitives used across all tabs.
+ * Shared, accessible UI primitives matching the exact visual design specs.
  */
 'use client';
 
 import React from 'react';
 
-// ── Badge ────────────────────────────────────────────────────────────────────
-
-type BadgeVariant = 'ok' | 'overdue' | 'at_risk' | 'cancelled' | 'pending' | 'in_progress';
-
-const BADGE_STYLES: Record<BadgeVariant, { bg: string; text: string; label: string }> = {
-  ok:          { bg: '#14532d', text: '#86efac', label: 'OK' },
-  pending:     { bg: '#1e3a5f', text: '#93c5fd', label: 'Pending' },
-  in_progress: { bg: '#1c3350', text: '#7dd3fc', label: 'In Progress' },
-  overdue:     { bg: '#4c0519', text: '#fda4af', label: 'Overdue' },
-  at_risk:     { bg: '#451a03', text: '#fde68a', label: 'At Risk' },
-  cancelled:   { bg: '#27272a', text: '#a1a1aa', label: 'Cancelled' },
-};
+// ── Badges ───────────────────────────────────────────────────────────────────
 
 export function StatusBadge({ status }: { status: string }) {
-  const v = (status as BadgeVariant) in BADGE_STYLES ? (status as BadgeVariant) : 'pending';
-  const s = BADGE_STYLES[v];
+  const norm = status.toLowerCase();
+  if (norm === 'overdue') {
+    return (
+      <span
+        role="status"
+        aria-label="Overdue"
+        style={{
+          background: '#2a0e17',
+          color: '#f87171',
+          border: '1px solid rgba(244, 63, 94, 0.4)',
+          borderRadius: 9999,
+          padding: '2px 10px',
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          display: 'inline-block',
+          textTransform: 'uppercase',
+        }}
+      >
+        OVERDUE
+      </span>
+    );
+  }
+
+  if (norm === 'at_risk' || norm === 'at risk') {
+    return (
+      <span
+        role="status"
+        aria-label="At risk"
+        style={{
+          background: '#0c2444',
+          color: '#38bdf8',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
+          borderRadius: 9999,
+          padding: '2px 10px',
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          display: 'inline-block',
+          textTransform: 'uppercase',
+        }}
+      >
+        AT RISK
+      </span>
+    );
+  }
+
+  if (norm === 'cancelled') {
+    return (
+      <span
+        role="status"
+        aria-label="Cancelled"
+        style={{
+          background: '#18181b',
+          color: '#a1a1aa',
+          border: '1px solid #27272a',
+          borderRadius: 9999,
+          padding: '2px 10px',
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          display: 'inline-block',
+          textTransform: 'uppercase',
+        }}
+      >
+        CANCELLED
+      </span>
+    );
+  }
+
   return (
     <span
       role="status"
-      aria-label={s.label}
+      aria-label="Pending"
       style={{
-        background: s.bg,
-        color: s.text,
+        background: '#131d33',
+        color: '#93c5fd',
+        border: '1px solid #1e293b',
+        borderRadius: 9999,
         padding: '2px 10px',
-        borderRadius: 20,
-        fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: '0.04em',
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: '0.05em',
         display: 'inline-block',
         textTransform: 'uppercase',
       }}
     >
-      {s.label}
+      PENDING
     </span>
   );
 }
@@ -54,12 +112,13 @@ export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          background: '#1e3a5f',
+          background: '#131c31',
+          border: '1px solid #1e293b',
           color: '#93c5fd',
-          borderRadius: 20,
-          padding: '3px 12px',
+          borderRadius: 9999,
+          padding: '4px 14px',
           fontSize: 12,
-          fontWeight: 600,
+          fontWeight: 500,
         }}
       >
         <span aria-hidden>⏳</span> Analyzing with AI...
@@ -73,17 +132,17 @@ export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
-        background: '#451a03',
-        color: '#fde68a',
-        border: '1px solid #78350f',
-        borderRadius: 20,
-        padding: '3px 12px',
+        gap: 6,
+        background: '#131c31',
+        color: '#cbd5e1',
+        border: '1px solid rgba(51, 65, 85, 0.7)',
+        borderRadius: 9999,
+        padding: '4px 14px',
         fontSize: 12,
-        fontWeight: 600,
+        fontWeight: 500,
       }}
     >
-      ⚙️ Demo mode - sample response
+      Demo mode - sample response
     </span>
   ) : (
     <span
@@ -91,12 +150,12 @@ export function AIBadge({ demo, loading }: { demo?: boolean; loading?: boolean }
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 6,
         background: '#064e3b',
         color: '#6ee7b7',
-        border: '1px solid #047857',
-        borderRadius: 20,
-        padding: '3px 12px',
+        border: '1px solid #059669',
+        borderRadius: 9999,
+        padding: '4px 14px',
         fontSize: 12,
         fontWeight: 600,
       }}
@@ -116,20 +175,20 @@ export function WarningList({ warnings }: { warnings: string[] }) {
       aria-label="Warnings"
       style={{
         margin: '0 0 16px',
-        padding: '12px 16px',
-        background: '#431407',
-        border: '1px solid #7c2d12',
-        borderRadius: 10,
+        padding: '14px 18px',
+        background: 'rgba(244, 63, 94, 0.05)',
+        border: '1px solid rgba(244, 63, 94, 0.4)',
+        borderRadius: 14,
         listStyle: 'none',
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
+        gap: 8,
       }}
     >
       {warnings.map((w, i) => (
-        <li key={i} style={{ color: '#fde68a', fontSize: 13, display: 'flex', gap: 8 }}>
-          <span aria-hidden>⚠️</span>
-          <span>{w}</span>
+        <li key={i} style={{ color: '#fda4af', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span aria-hidden style={{ color: '#f43f5e', fontSize: 14 }}>⚠️</span>
+          <span style={{ lineHeight: 1.5 }}>{w}</span>
         </li>
       ))}
     </ul>
@@ -144,12 +203,12 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helpText?: string;
 }
 
-export function Field({ id, label, helpText, ...rest }: FieldProps) {
+export function Field({ id, label, helpText, style, ...rest }: FieldProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <label
         htmlFor={id}
-        style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}
+        style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}
       >
         {label}
       </label>
@@ -157,18 +216,19 @@ export function Field({ id, label, helpText, ...rest }: FieldProps) {
         id={id}
         aria-describedby={helpText ? `${id}-help` : undefined}
         style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
+          background: '#070d19',
+          border: '1px solid #1e293b',
           borderRadius: 8,
-          padding: '8px 12px',
+          padding: '10px 14px',
           color: '#f8fafc',
-          fontSize: 14,
+          fontSize: 13,
           outline: 'none',
           width: '100%',
           transition: 'border-color 0.15s',
+          ...style,
         }}
         onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-        onBlur={(e) => (e.target.style.borderColor = '#334155')}
+        onBlur={(e) => (e.target.style.borderColor = '#1e293b')}
         {...rest}
       />
       {helpText && (
@@ -188,31 +248,51 @@ interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement>
   children: React.ReactNode;
 }
 
-export function SelectField({ id, label, children, ...rest }: SelectFieldProps) {
+export function SelectField({ id, label, children, style, ...rest }: SelectFieldProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>
         {label}
       </label>
-      <select
-        id={id}
-        style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: 8,
-          padding: '8px 12px',
-          color: '#f8fafc',
-          fontSize: 14,
-          outline: 'none',
-          width: '100%',
-          cursor: 'pointer',
-        }}
-        onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-        onBlur={(e) => (e.target.style.borderColor = '#334155')}
-        {...rest}
-      >
-        {children}
-      </select>
+      <div style={{ position: 'relative' }}>
+        <select
+          id={id}
+          style={{
+            background: '#070d19',
+            border: '1px solid #1e293b',
+            borderRadius: 8,
+            padding: '10px 14px',
+            color: '#f8fafc',
+            fontSize: 13,
+            outline: 'none',
+            width: '100%',
+            cursor: 'pointer',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            paddingRight: 32,
+            ...style,
+          }}
+          onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
+          onBlur={(e) => (e.target.style.borderColor = '#1e293b')}
+          {...rest}
+        >
+          {children}
+        </select>
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            right: 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            color: '#64748b',
+            fontSize: 11,
+          }}
+        >
+          ▼
+        </span>
+      </div>
     </div>
   );
 }
@@ -220,39 +300,67 @@ export function SelectField({ id, label, children, ...rest }: SelectFieldProps) 
 // ── Button ───────────────────────────────────────────────────────────────────
 
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  size?: 'sm' | 'md';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline-pill';
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export function Btn({ variant = 'primary', size = 'md', children, style, ...rest }: BtnProps) {
-  const bg: Record<string, string> = {
-    primary:   '#0ea5e9',
-    secondary: '#334155',
-    danger:    '#e11d48',
-    ghost:     'transparent',
-  };
-  const hover: Record<string, string> = {
-    primary:   '#0284c7',
-    secondary: '#475569',
-    danger:    '#be123c',
-    ghost:     '#1e293b',
-  };
   const [hov, setHov] = React.useState(false);
+
+  let bg = '#60a5fa';
+  let color = '#070d19';
+  let border = 'none';
+  let radius = 8;
+  let pad = size === 'sm' ? '6px 14px' : size === 'lg' ? '10px 24px' : '8px 18px';
+  let fontSize = size === 'sm' ? 12 : 13;
+  let fontWeight = 700;
+
+  if (variant === 'secondary') {
+    bg = hov ? '#1e293b' : '#131c31';
+    color = '#cbd5e1';
+    border = '1px solid #334155';
+    fontWeight = 500;
+  } else if (variant === 'danger') {
+    bg = hov ? '#2a0e17' : 'transparent';
+    color = '#f87171';
+    border = '1px solid rgba(244, 63, 94, 0.4)';
+    radius = 9999;
+    fontWeight = 600;
+    fontSize = 11;
+  } else if (variant === 'outline-pill') {
+    bg = hov ? '#1e293b' : 'transparent';
+    color = '#cbd5e1';
+    border = '1px solid #334155';
+    radius = 9999;
+    fontWeight = 500;
+    fontSize = 12;
+  } else if (variant === 'ghost') {
+    bg = hov ? '#172339' : 'transparent';
+    color = '#cbd5e1';
+    border = '1px solid #1e293b';
+    fontWeight = 500;
+  } else {
+    // Primary
+    bg = hov ? '#3b82f6' : '#60a5fa';
+    color = '#070d19';
+  }
+
   return (
     <button
       style={{
-        background: hov ? hover[variant] : bg[variant],
-        color: variant === 'ghost' ? '#94a3b8' : '#fff',
-        border: variant === 'ghost' ? '1px solid #334155' : 'none',
-        borderRadius: 8,
-        padding: size === 'sm' ? '5px 12px' : '8px 18px',
-        fontSize: size === 'sm' ? 12 : 14,
-        fontWeight: 600,
+        background: bg,
+        color,
+        border,
+        borderRadius: radius,
+        padding: pad,
+        fontSize,
+        fontWeight,
         cursor: rest.disabled ? 'not-allowed' : 'pointer',
-        opacity: rest.disabled ? 0.5 : 1,
-        transition: 'background 0.15s',
+        opacity: rest.disabled ? 0.45 : 1,
+        transition: 'all 0.15s ease',
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 6,
         ...style,
       }}
@@ -265,7 +373,7 @@ export function Btn({ variant = 'primary', size = 'md', children, style, ...rest
   );
 }
 
-// ── Card ─────────────────────────────────────────────────────────────────────
+// ── Card Container ───────────────────────────────────────────────────────────
 
 export function Card({
   children,
@@ -277,10 +385,11 @@ export function Card({
   return (
     <div
       style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: 12,
-        padding: 20,
+        background: '#0d1527',
+        border: '1px solid #182235',
+        borderRadius: 16,
+        padding: '24px',
+        position: 'relative',
         ...style,
       }}
     >
@@ -289,18 +398,16 @@ export function Card({
   );
 }
 
-// ── Section heading ───────────────────────────────────────────────────────────
+// ── Section Heading ──────────────────────────────────────────────────────────
 
 export function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2
       style={{
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 700,
-        color: '#e2e8f0',
+        color: '#f8fafc',
         marginBottom: 16,
-        borderBottom: '1px solid #334155',
-        paddingBottom: 8,
       }}
     >
       {children}
@@ -334,5 +441,5 @@ export function LiveRegion({ message }: { message: string }) {
 // ── Currency formatter ────────────────────────────────────────────────────────
 
 export function fmt(n: number): string {
-  return `₹${n.toLocaleString('en-IN')}`;
+  return `₹${Math.round(n).toLocaleString('en-IN')}`;
 }

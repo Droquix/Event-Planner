@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Field, SelectField, Btn, Card, SectionHeading, WarningList, AIBadge } from './ui';
+import { Field, SelectField, Card, WarningList, AIBadge } from './ui';
+import { SparklesIcon, CalendarIcon } from './icons';
 
 export interface EventSetup {
   occasion: string;
@@ -34,10 +35,12 @@ interface Props {
 }
 
 export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(
+    'We are planning a wedding in Mumbai for around 200 guests on 15 February 2027. Budget is 25 lakhs. Top priorities are food and photography.'
+  );
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
-  const [aiDemo, setAiDemo] = useState<boolean | undefined>(undefined);
+  const [aiDemo, setAiDemo] = useState<boolean | undefined>(true);
 
   function set(field: keyof EventSetup, value: EventSetup[keyof EventSetup]) {
     onSetupChange({ ...setup, [field]: value });
@@ -90,142 +93,265 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
     Number(setup.budget) > 0 &&
     Number(setup.guestCount) >= 1;
 
+  // Format date for display in the hero description
+  let heroDateText = '15 February 2027';
+  if (setup.date) {
+    try {
+      const d = new Date(setup.date);
+      if (!isNaN(d.getTime())) {
+        heroDateText = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Free-text intake */}
-      <Card>
-        <SectionHeading>Describe your event (optional)</SectionHeading>
-        <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
-          Type a short description and we&apos;ll try to fill in the fields below automatically.
-          You can always edit them.
+      
+      {/* Centered Hero Header */}
+      <div style={{ textAlign: 'center', marginBottom: 12, paddingTop: 8 }}>
+        <p
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#38bdf8',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginBottom: 14,
+          }}
+        >
+          YOUR WEDDING, CLEARLY PLANNED
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <label htmlFor="intake-text" style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>
+        <h2
+          style={{
+            fontSize: 38,
+            fontWeight: 800,
+            color: '#ffffff',
+            lineHeight: 1.18,
+            letterSpacing: '-0.02em',
+            marginBottom: 14,
+          }}
+        >
+          Shape the wedding you want,<br />
+          then let the details fall into place.
+        </h2>
+        <p
+          style={{
+            fontSize: 14,
+            color: '#94a3b8',
+            maxWidth: 620,
+            margin: '0 auto',
+            lineHeight: 1.6,
+          }}
+        >
+          Start with your event brief. We&apos;ll use it to organize your budget, vendors, and every decision leading up to {heroDateText}.
+        </p>
+      </div>
+
+      {/* Card 1: Describe your event */}
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Describe your event (optional)
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
+              Share the outline and we&apos;ll prefill the details below.
+            </p>
+          </div>
+          <div style={{ color: '#60a5fa', opacity: 0.85, padding: 4 }}>
+            <SparklesIcon size={18} color="#60a5fa" />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label htmlFor="intake-text" style={{ fontSize: 12, fontWeight: 500, color: '#cbd5e1', marginBottom: 6 }}>
             Event description
           </label>
           <textarea
             id="intake-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="e.g. We are planning a wedding in Mumbai for around 200 guests on 15 February 2026. Budget is 25 lakhs. Top priorities are food and photography."
             rows={4}
             style={{
-              background: '#0f172a',
-              border: '1px solid #334155',
+              background: '#070d19',
+              border: '1px solid #1e293b',
               borderRadius: 8,
-              padding: '10px 12px',
+              padding: '12px 14px',
               color: '#f8fafc',
-              fontSize: 14,
+              fontSize: 13,
               resize: 'vertical',
               width: '100%',
               outline: 'none',
               fontFamily: 'inherit',
+              lineHeight: 1.5,
             }}
             onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-            onBlur={(e)  => (e.target.style.borderColor = '#334155')}
+            onBlur={(e)  => (e.target.style.borderColor = '#1e293b')}
             aria-describedby="intake-help"
           />
-          <span id="intake-help" style={{ fontSize: 11, color: '#64748b' }}>
-            Mention date (e.g. 15 November 2026), budget (e.g. 10 lakh), guest count, and city.
+          <span id="intake-help" style={{ fontSize: 11, color: '#64748b', marginTop: 6, marginBottom: 14 }}>
+            Mention date, budget, guest count, and city. You can always edit the details.
           </span>
+
           {parseError && (
-            <p role="alert" style={{ color: '#fca5a5', fontSize: 13 }}>
+            <p role="alert" style={{ color: '#fca5a5', fontSize: 12, marginBottom: 12 }}>
               {parseError}
             </p>
           )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <Btn onClick={handleParse} disabled={parsing || !text.trim()}>
-              {parsing ? '⏳ Analyzing with AI…' : '✨ Auto-fill fields'}
-            </Btn>
+            <button
+              type="button"
+              onClick={handleParse}
+              disabled={parsing || !text.trim()}
+              style={{
+                background: '#60a5fa',
+                color: '#070d19',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: parsing || !text.trim() ? 'not-allowed' : 'pointer',
+                opacity: parsing || !text.trim() ? 0.5 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
+            >
+              <SparklesIcon size={14} color="#070d19" />
+              <span>{parsing ? 'Analyzing with AI…' : 'Auto-fill fields'}</span>
+            </button>
             <AIBadge demo={aiDemo} loading={parsing} />
           </div>
         </div>
       </Card>
 
-      {/* Structured fields */}
+      {/* Card 2: Event details */}
       <Card>
-        <SectionHeading>Event details</SectionHeading>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: 16,
-          }}
-        >
-          <SelectField
-            id="occasion"
-            label="Occasion *"
-            value={setup.occasion}
-            onChange={(e) => set('occasion', e.target.value)}
-            required
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <div
+            style={{
+              background: '#172339',
+              color: '#38bdf8',
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
           >
-            <option value="">Select occasion…</option>
-            {OCCASIONS.filter(Boolean).map((o) => (
-              <option key={o} value={o}>
-                {o.charAt(0).toUpperCase() + o.slice(1)}
-              </option>
-            ))}
-          </SelectField>
+            <CalendarIcon size={16} color="#38bdf8" />
+          </div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+            Event details
+          </h3>
+        </div>
 
-          <Field
-            id="event-date"
-            label="Event date *"
-            type="date"
-            value={setup.date}
-            onChange={(e) => set('date', e.target.value)}
-            required
-            helpText="YYYY-MM-DD"
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 16,
+            }}
+          >
+            <SelectField
+              id="occasion"
+              label="Occasion *"
+              value={setup.occasion}
+              onChange={(e) => set('occasion', e.target.value)}
+              required
+            >
+              <option value="">Select occasion…</option>
+              {OCCASIONS.filter(Boolean).map((o) => (
+                <option key={o} value={o}>
+                  {o.charAt(0).toUpperCase() + o.slice(1)}
+                </option>
+              ))}
+            </SelectField>
 
-          <Field
-            id="total-budget"
-            label="Total budget (₹) *"
-            type="number"
-            min={1}
-            value={setup.budget}
-            onChange={(e) => set('budget', e.target.value)}
-            placeholder="e.g. 1500000"
-            required
-            helpText="Enter total amount in rupees"
-          />
+            <Field
+              id="event-date"
+              label="Event date *"
+              type="date"
+              value={setup.date}
+              onChange={(e) => set('date', e.target.value)}
+              required
+            />
 
-          <Field
-            id="guest-count"
-            label="Number of guests *"
-            type="number"
-            min={1}
-            value={setup.guestCount}
-            onChange={(e) => set('guestCount', e.target.value)}
-            placeholder="e.g. 150"
-            required
-          />
+            <Field
+              id="total-budget"
+              label="Total budget (₹) *"
+              type="number"
+              min={1}
+              value={setup.budget}
+              onChange={(e) => set('budget', e.target.value)}
+              placeholder="e.g. 2500000"
+              required
+            />
 
-          <Field
-            id="city"
-            label="City"
-            type="text"
-            value={setup.city}
-            onChange={(e) => set('city', e.target.value)}
-            placeholder="e.g. Mumbai"
-          />
+            <Field
+              id="guest-count"
+              label="Number of guests *"
+              type="number"
+              min={1}
+              value={setup.guestCount}
+              onChange={(e) => set('guestCount', e.target.value)}
+              placeholder="e.g. 200"
+              required
+            />
+          </div>
+
+          <div style={{ maxWidth: 300 }}>
+            <Field
+              id="city"
+              label="City"
+              type="text"
+              value={setup.city}
+              onChange={(e) => set('city', e.target.value)}
+              placeholder="e.g. Mumbai"
+            />
+          </div>
         </div>
       </Card>
 
-      {/* Priorities */}
+      {/* Card 3: Priorities (pick up to 3) */}
       <Card>
-        <SectionHeading>Priorities (pick up to 3)</SectionHeading>
-        <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 14 }}>
-          Selected categories will receive a larger share of the budget.
-        </p>
-        <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-          <legend className="sr-only">Budget priorities</legend>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Priorities (pick up to 3)
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
+              Selected categories receive a larger share of the budget.
+            </p>
+          </div>
           <div
             style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
+              background: '#131d33',
+              border: '1px solid #1e293b',
+              color: '#94a3b8',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '3px 10px',
+              borderRadius: 9999,
             }}
           >
+            {setup.priorities.length} / 3 selected
+          </div>
+        </div>
+
+        <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+          <legend className="sr-only">Budget priorities</legend>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             {PRIORITY_OPTIONS.map(({ value, label }) => {
               const active = setup.priorities.includes(value);
               const rank = setup.priorities.indexOf(value);
@@ -237,51 +363,48 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
                   aria-checked={active}
                   onClick={() => togglePriority(value)}
                   style={{
-                    background: active ? '#0c4a6e' : '#1e293b',
-                    border: active ? '2px solid #38bdf8' : '2px solid #334155',
+                    background: active ? '#60a5fa' : '#070d19',
+                    border: active ? '1px solid #60a5fa' : '1px solid #1e293b',
                     borderRadius: 8,
                     padding: '7px 16px',
-                    color: active ? '#e0f2fe' : '#94a3b8',
+                    color: active ? '#070d19' : '#cbd5e1',
                     cursor: 'pointer',
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 400,
+                    fontSize: 12,
+                    fontWeight: active ? 700 : 500,
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.15s',
+                    gap: 8,
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   {active && (
                     <span
-                      aria-label={`Priority ${rank + 1}`}
+                      aria-label={`Priority rank ${rank + 1}`}
                       style={{
-                        background: '#38bdf8',
-                        color: '#0f172a',
+                        background: '#070d19',
+                        color: '#60a5fa',
                         borderRadius: '50%',
-                        width: 18,
-                        height: 18,
+                        width: 17,
+                        height: 17,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 11,
-                        fontWeight: 700,
+                        fontSize: 10,
+                        fontWeight: 800,
                       }}
                     >
                       {rank + 1}
                     </span>
                   )}
-                  {label}
+                  <span>{label}</span>
                 </button>
               );
             })}
           </div>
         </fieldset>
-        <p style={{ fontSize: 11, color: '#64748b', marginTop: 10 }}>
-          {setup.priorities.length}/3 selected
-        </p>
       </Card>
 
-      {/* Validation hints */}
+      {/* Validation warning list if required fields missing */}
       {!canProceed && (
         <WarningList
           warnings={[
@@ -293,16 +416,40 @@ export default function OnboardingTab({ setup, onSetupChange, onReady }: Props) 
         />
       )}
 
-      <div>
-        <Btn
+      {/* Bottom Action: Continue to Budget */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <button
+          type="button"
           onClick={onReady}
           disabled={!canProceed}
-          style={{ padding: '10px 28px', fontSize: 15 }}
           aria-disabled={!canProceed}
+          style={{
+            background: '#60a5fa',
+            color: '#070d19',
+            border: 'none',
+            borderRadius: 8,
+            padding: '10px 24px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: !canProceed ? 'not-allowed' : 'pointer',
+            opacity: !canProceed ? 0.45 : 1,
+            transition: 'background 0.15s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          onMouseEnter={(e) => {
+            if (canProceed) e.currentTarget.style.background = '#3b82f6';
+          }}
+          onMouseLeave={(e) => {
+            if (canProceed) e.currentTarget.style.background = '#60a5fa';
+          }}
         >
-          Continue to Budget →
-        </Btn>
+          <span>Continue to Budget</span>
+          <span aria-hidden>→</span>
+        </button>
       </div>
+
     </div>
   );
 }

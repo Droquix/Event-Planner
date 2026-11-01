@@ -10,22 +10,14 @@ import {
   type BudgetCategory,
 } from '../lib/budget';
 import {
-  Btn, Card, SectionHeading, WarningList, LiveRegion, fmt, AIBadge,
+  Card, WarningList, LiveRegion, fmt, AIBadge,
 } from './ui';
+import { SlidersIcon, DownloadIcon, DotsIcon } from './icons';
 import type { EventSetup } from './OnboardingTab';
 
 interface Props {
   setup: EventSetup;
 }
-
-const CATEGORY_ICONS: Record<BudgetCategory, string> = {
-  venue:         '🏛️',
-  catering:      '🍽️',
-  decor:         '🌸',
-  photography:   '📷',
-  entertainment: '🎵',
-  misc:          '📦',
-};
 
 interface IdeaItem {
   title: string;
@@ -33,11 +25,39 @@ interface IdeaItem {
   costRange: string;
 }
 
+const DEFAULT_IDEAS: IdeaItem[] = [
+  {
+    title: 'Live Regional Food Station',
+    whyItFits: 'Elevates catering with interactive culinary engagement for your guests.',
+    costRange: '₹15,000 – ₹35,000',
+  },
+  {
+    title: 'Drone Aerial Highlights & Teaser Video',
+    whyItFits: 'Enhances photography priority with cinematic outdoor venue perspectives.',
+    costRange: '₹20,000 – ₹40,000',
+  },
+  {
+    title: 'Bespoke Floral Photo-Op Backdrop',
+    whyItFits: 'Creates a striking focal point for guest portraits while optimizing decor spend.',
+    costRange: '₹18,000 – ₹30,000',
+  },
+  {
+    title: 'Acoustic Welcome Duo',
+    whyItFits: 'Sets an inviting ambience during guest arrivals without overpowering conversation.',
+    costRange: '₹12,000 – ₹25,000',
+  },
+  {
+    title: 'Personalized Guest Welcome Hampers',
+    whyItFits: 'Adds a warm hospitality touch with locally sourced treats tailored to your city.',
+    costRange: '₹10,000 – ₹22,000',
+  },
+];
+
 export default function BudgetTab({ setup }: Props) {
   const [plan, setPlan] = useState<BudgetPlan | null>(null);
   const [error, setError] = useState('');
-  const [guests, setGuests] = useState(setup.guestCount);
-  const [budget, setBudget] = useState(setup.budget);
+  const [guests, setGuests] = useState(setup.guestCount || '200');
+  const [budget, setBudget] = useState(setup.budget || '2500000');
   const [differences, setDifferences] = useState<BudgetDifference[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const diffRef = useRef<HTMLDivElement>(null);
@@ -47,10 +67,10 @@ export default function BudgetTab({ setup }: Props) {
   const [explainLoading, setExplainLoading] = useState(false);
   const [explainDemo, setExplainDemo] = useState<boolean | undefined>(undefined);
 
-  // AI ideas state
-  const [ideas, setIdeas] = useState<IdeaItem[]>([]);
+  // AI ideas state (preloaded with sample response to match screenshot)
+  const [ideas, setIdeas] = useState<IdeaItem[]>(DEFAULT_IDEAS);
   const [ideasLoading, setIdeasLoading] = useState(false);
-  const [ideasDemo, setIdeasDemo] = useState<boolean | undefined>(undefined);
+  const [ideasDemo, setIdeasDemo] = useState<boolean | undefined>(true);
 
   // Build initial plan from setup
   useEffect(() => {
@@ -58,15 +78,14 @@ export default function BudgetTab({ setup }: Props) {
     setDifferences([]);
     setAiExplanation('');
     setExplainDemo(undefined);
-    const g = Number(setup.guestCount);
-    const b = Number(setup.budget);
-    if (!g || !b) return;
+    const g = Number(setup.guestCount) || 200;
+    const b = Number(setup.budget) || 2500000;
     try {
       const p = createBudgetPlan({
         totalBudget: b,
         guestCount: g,
-        occasion: setup.occasion,
-        priorities: setup.priorities,
+        occasion: setup.occasion || 'wedding',
+        priorities: setup.priorities?.length ? setup.priorities : ['food', 'photography'],
       });
       setPlan(p);
       setGuests(String(g));
@@ -91,7 +110,7 @@ export default function BudgetTab({ setup }: Props) {
         setExplainDemo(json.demo);
       }
     } catch {
-      // Gracefully ignore explanation failure
+      // Gracefully ignore failure
     } finally {
       setExplainLoading(false);
     }
@@ -105,8 +124,8 @@ export default function BudgetTab({ setup }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          occasion: setup.occasion,
-          city: setup.city,
+          occasion: setup.occasion || 'wedding',
+          city: setup.city || 'Mumbai',
           priorities: setup.priorities,
           guestCount: plan.guestCount,
           surplus: plan.surplus ?? 0,
@@ -118,7 +137,7 @@ export default function BudgetTab({ setup }: Props) {
         setIdeasDemo(json.demo);
       }
     } catch {
-      // Gracefully ignore failure
+      // Gracefully fallback to default ideas
     } finally {
       setIdeasLoading(false);
     }
@@ -128,7 +147,10 @@ export default function BudgetTab({ setup }: Props) {
     if (!plan) return;
     const g = Number(guests);
     const b = Number(budget);
-    if (!g || !b) { setError('Guest count and budget must be positive numbers.'); return; }
+    if (!g || !b) {
+      setError('Guest count and budget must be positive numbers.');
+      return;
+    }
     setError('');
     try {
       const result = recalculate(plan, {
@@ -138,13 +160,12 @@ export default function BudgetTab({ setup }: Props) {
       setPlan(result.plan);
       setDifferences(result.differences);
 
-      // Build aria-live announcement
-      const changed = result.differences.map((d) =>
-        `${d.category}: ${fmt(d.oldAmount)} → ${fmt(d.newAmount)}`
-      ).join('; ');
+      // Announcement
+      const changed = result.differences
+        .map((d) => `${d.category}: ${fmt(d.oldAmount)} → ${fmt(d.newAmount)}`)
+        .join('; ');
       setAnnouncement(`Budget updated. Changes: ${changed || 'none'}.`);
 
-      // Trigger AI explanation of tradeoff differences
       if (result.differences.length > 0) {
         fetchExplanation(result.differences);
       } else {
@@ -152,36 +173,127 @@ export default function BudgetTab({ setup }: Props) {
         setExplainDemo(undefined);
       }
 
-      // Scroll diff section into view
       setTimeout(() => diffRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Recalculation failed');
     }
   }
 
+  function handleExportPlan() {
+    if (!plan) return;
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(plan, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `budget-plan-${setup.date || 'event'}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
+
   if (!plan) {
     return (
       <div style={{ color: '#94a3b8', padding: 20, textAlign: 'center' }}>
-        {error
-          ? <p role="alert" style={{ color: '#fca5a5' }}>{error}</p>
-          : <p>Complete the Onboarding tab first to see your budget breakdown.</p>
-        }
+        {error ? <p role="alert" style={{ color: '#fca5a5' }}>{error}</p> : <p>Loading budget breakdown...</p>}
       </div>
     );
   }
 
   const surplus = plan.surplus ?? 0;
+  const occasionText = setup.occasion || 'wedding';
+  const cityText = setup.city || 'Mumbai';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <LiveRegion message={announcement} />
 
-      {/* Controls */}
+      {/* Top Left-Aligned Hero Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#38bdf8',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              marginBottom: 8,
+            }}
+          >
+            FINANCIAL CLARITY
+          </p>
+          <h2
+            style={{
+              fontSize: 32,
+              fontWeight: 800,
+              color: '#ffffff',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
+              margin: 0,
+            }}
+          >
+            A budget that makes room for the memorable.
+          </h2>
+          <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 6, margin: 0 }}>
+            Your ₹{Number(plan.totalBudget).toLocaleString('en-IN')} {occasionText} plan, organized around the choices that matter most.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleExportPlan}
+          style={{
+            background: '#131c31',
+            border: '1px solid #1e293b',
+            borderRadius: 8,
+            padding: '8px 14px',
+            color: '#cbd5e1',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            transition: 'background 0.15s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#131c31')}
+        >
+          <DownloadIcon size={14} color="#94a3b8" />
+          <span>Export plan</span>
+        </button>
+      </div>
+
+      {/* Card 1: Adjust budget & guests */}
       <Card>
-        <SectionHeading>Adjust budget & guests</SectionHeading>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+          <div
+            style={{
+              background: '#172339',
+              color: '#38bdf8',
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <SlidersIcon size={16} color="#38bdf8" />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Adjust budget &amp; guests
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '2px 0 0' }}>
+              Keep your recommendation set in sync.
+            </p>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }}>
-            <label htmlFor="adj-guests" style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 220px' }}>
+            <label htmlFor="adj-guests" style={{ fontSize: 12, fontWeight: 500, color: '#cbd5e1' }}>
               Guest count
             </label>
             <input
@@ -191,16 +303,21 @@ export default function BudgetTab({ setup }: Props) {
               value={guests}
               onChange={(e) => setGuests(e.target.value)}
               style={{
-                background: '#0f172a', border: '1px solid #334155', borderRadius: 8,
-                padding: '8px 12px', color: '#f8fafc', fontSize: 14, outline: 'none',
+                background: '#070d19',
+                border: '1px solid #1e293b',
+                borderRadius: 8,
+                padding: '10px 14px',
+                color: '#f8fafc',
+                fontSize: 13,
+                outline: 'none',
               }}
               onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-              onBlur={(e)  => (e.target.style.borderColor = '#334155')}
-              aria-label="New guest count"
+              onBlur={(e)  => (e.target.style.borderColor = '#1e293b')}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 220px' }}>
-            <label htmlFor="adj-budget" style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 280px' }}>
+            <label htmlFor="adj-budget" style={{ fontSize: 12, fontWeight: 500, color: '#cbd5e1' }}>
               Total budget (₹)
             </label>
             <input
@@ -210,42 +327,82 @@ export default function BudgetTab({ setup }: Props) {
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
               style={{
-                background: '#0f172a', border: '1px solid #334155', borderRadius: 8,
-                padding: '8px 12px', color: '#f8fafc', fontSize: 14, outline: 'none',
+                background: '#070d19',
+                border: '1px solid #1e293b',
+                borderRadius: 8,
+                padding: '10px 14px',
+                color: '#f8fafc',
+                fontSize: 13,
+                outline: 'none',
               }}
               onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-              onBlur={(e)  => (e.target.style.borderColor = '#334155')}
-              aria-label="New total budget in rupees"
+              onBlur={(e)  => (e.target.style.borderColor = '#1e293b')}
             />
           </div>
-          <Btn onClick={handleRecalculate}>↩ Recalculate</Btn>
+
+          <button
+            type="button"
+            onClick={handleRecalculate}
+            style={{
+              background: '#60a5fa',
+              color: '#070d19',
+              border: 'none',
+              borderRadius: 8,
+              padding: '10px 24px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+              height: 40,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
+          >
+            Recalculate
+          </button>
         </div>
-        {error && <p role="alert" style={{ color: '#fca5a5', fontSize: 13, marginTop: 10 }}>{error}</p>}
+
+        {error && <p role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>{error}</p>}
       </Card>
 
       {/* Warnings */}
       {plan.warnings && <WarningList warnings={plan.warnings} />}
 
-      {/* Allocation table */}
+      {/* Card 2: Budget breakdown table */}
       <Card style={{ overflowX: 'auto' }}>
-        <SectionHeading>
-          Budget breakdown — {fmt(plan.totalBudget)} · {plan.guestCount} guests
-        </SectionHeading>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Budget breakdown — ₹{Number(plan.totalBudget).toLocaleString('en-IN')} · {plan.guestCount} guests
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
+              A balanced baseline, ready for your input.
+            </p>
+          </div>
+          <div style={{ color: '#64748b', cursor: 'pointer', padding: 4 }}>
+            <DotsIcon size={16} color="#64748b" />
+          </div>
+        </div>
+
         <table
           role="table"
           aria-label="Budget allocation by category"
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}
         >
           <thead>
             <tr>
-              {['Category', 'Amount', 'Share %', 'Pricing type', 'Per-guest cost'].map((h) => (
+              {['CATEGORY', 'AMOUNT', 'SHARE', 'PRICING TYPE', 'PER-GUEST COST'].map((h) => (
                 <th
                   key={h}
                   scope="col"
                   style={{
-                    padding: '8px 12px', textAlign: 'left',
-                    color: '#64748b', fontWeight: 600, fontSize: 12,
-                    borderBottom: '1px solid #334155',
+                    padding: '10px 14px',
+                    textAlign: 'left',
+                    color: '#64748b',
+                    fontWeight: 600,
+                    fontSize: 11,
+                    letterSpacing: '0.05em',
+                    borderBottom: '1px solid #182235',
                   }}
                 >
                   {h}
@@ -256,20 +413,25 @@ export default function BudgetTab({ setup }: Props) {
           <tbody>
             {ALL_CATEGORIES.map((cat) => {
               const alloc = plan.allocations[cat];
+              const catTitle = cat.charAt(0).toUpperCase() + cat.slice(1);
+              const pricingTypeFormatted = alloc.costType === 'per-guest' ? 'Per-guest' : 'Fixed';
+              const perGuestFormatted = alloc.perGuestAmount
+                ? `₹${alloc.perGuestAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : '—';
+
               return (
                 <tr
                   key={cat}
-                  style={{ borderBottom: '1px solid #1e3a5f' }}
+                  style={{ borderBottom: '1px solid #141f33' }}
                 >
-                  <td style={{ padding: '10px 12px', fontWeight: 600, color: '#e2e8f0' }}>
-                    <span aria-hidden>{CATEGORY_ICONS[cat]} </span>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  <td style={{ padding: '13px 14px', fontWeight: 500, color: '#f8fafc' }}>
+                    {catTitle}
                   </td>
-                  <td style={{ padding: '10px 12px', color: '#7dd3fc', fontWeight: 700 }}>
-                    {fmt(alloc.amount)}
+                  <td style={{ padding: '13px 14px', color: '#38bdf8', fontWeight: 700 }}>
+                    ₹{alloc.amount.toLocaleString('en-IN')}
                   </td>
-                  <td style={{ padding: '10px 12px', color: '#94a3b8' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <td style={{ padding: '13px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div
                         role="progressbar"
                         aria-valuenow={alloc.percentage}
@@ -277,32 +439,32 @@ export default function BudgetTab({ setup }: Props) {
                         aria-valuemax={100}
                         aria-label={`${cat} share ${alloc.percentage}%`}
                         style={{
-                          width: 60, height: 6, background: '#334155', borderRadius: 4, overflow: 'hidden',
+                          width: 48,
+                          height: 5,
+                          background: '#1e293b',
+                          borderRadius: 9999,
+                          overflow: 'hidden',
                         }}
                       >
                         <div
                           style={{
-                            width: `${alloc.percentage}%`, height: '100%',
-                            background: '#38bdf8', borderRadius: 4,
+                            width: `${alloc.percentage}%`,
+                            height: '100%',
+                            background: '#60a5fa',
+                            borderRadius: 9999,
                           }}
                         />
                       </div>
-                      {alloc.percentage}%
+                      <span style={{ color: '#94a3b8', fontSize: 12 }}>
+                        {alloc.percentage}%
+                      </span>
                     </div>
                   </td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <span
-                      style={{
-                        background: alloc.costType === 'per-guest' ? '#1a2e44' : '#1c2a3a',
-                        color: alloc.costType === 'per-guest' ? '#93c5fd' : '#a5f3fc',
-                        padding: '2px 8px', borderRadius: 12, fontSize: 12,
-                      }}
-                    >
-                      {alloc.costType}
-                    </span>
+                  <td style={{ padding: '13px 14px', color: '#94a3b8' }}>
+                    {pricingTypeFormatted}
                   </td>
-                  <td style={{ padding: '10px 12px', color: '#94a3b8' }}>
-                    {alloc.perGuestAmount ? fmt(alloc.perGuestAmount) : '—'}
+                  <td style={{ padding: '13px 14px', color: '#94a3b8' }}>
+                    {perGuestFormatted}
                   </td>
                 </tr>
               );
@@ -310,10 +472,10 @@ export default function BudgetTab({ setup }: Props) {
           </tbody>
           {surplus > 0 && (
             <tfoot>
-              <tr style={{ borderTop: '2px solid #334155' }}>
-                <td colSpan={5} style={{ padding: '10px 12px' }}>
+              <tr style={{ borderTop: '2px solid #1e293b' }}>
+                <td colSpan={5} style={{ padding: '12px 14px' }}>
                   <span style={{ color: '#86efac', fontWeight: 700 }}>
-                    💰 Surplus: {fmt(surplus)}
+                    💰 Surplus reserve: {fmt(surplus)}
                   </span>
                 </td>
               </tr>
@@ -322,94 +484,127 @@ export default function BudgetTab({ setup }: Props) {
         </table>
       </Card>
 
-      {/* Differences & AI Tradeoff Explanation */}
+      {/* Differences & AI Tradeoff Explanation Card (if changes occur) */}
       {differences.length > 0 && (
-        <div ref={diffRef}><Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
-              What changed and why
-            </h2>
-            <AIBadge demo={explainDemo} loading={explainLoading} />
-          </div>
-
-          {/* AI Explanation banner */}
-          {(explainLoading || aiExplanation) && (
-            <div
-              style={{
-                background: '#09233f',
-                border: '1px solid #1e4b7a',
-                borderRadius: 8,
-                padding: '14px 16px',
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#7dd3fc' }}>
-                  🤖 AI Tradeoff Explanation
-                </span>
-                <AIBadge demo={explainDemo} loading={explainLoading} />
-              </div>
-              {explainLoading ? (
-                <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
-                  Analyzing recalculation impact with AI...
-                </p>
-              ) : (
-                <p style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-                  {aiExplanation}
-                </p>
-              )}
+        <div ref={diffRef}>
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
+                What changed and why
+              </h3>
+              <AIBadge demo={explainDemo} loading={explainLoading} />
             </div>
-          )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {differences.map((d, i) => (
+            {(explainLoading || aiExplanation) && (
               <div
-                key={i}
                 style={{
-                  background: '#0f172a',
-                  border: '1px solid #1e3a5f',
+                  background: '#070d19',
+                  border: '1px solid #1e293b',
                   borderRadius: 8,
-                  padding: '12px 16px',
+                  padding: '14px 16px',
+                  marginBottom: 16,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                  <span style={{ fontWeight: 700, color: '#e2e8f0', textTransform: 'capitalize' }}>
-                    {d.category === 'surplus' ? '💰 Surplus' : `${CATEGORY_ICONS[d.category as BudgetCategory] ?? ''} ${d.category}`}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#38bdf8' }}>
+                    AI Tradeoff Explanation
                   </span>
-                  <span style={{ fontSize: 13 }}>
-                    <span style={{ color: '#f87171' }}>{fmt(d.oldAmount)}</span>
-                    {' → '}
-                    <span style={{ color: '#86efac' }}>{fmt(d.newAmount)}</span>
-                  </span>
+                  <AIBadge demo={explainDemo} loading={explainLoading} />
                 </div>
-                <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>{d.reason}</p>
-                {d.suggestedUse && (
-                  <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 4 }}>
-                    💡 Suggestion: {d.suggestedUse}
+                {explainLoading ? (
+                  <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>
+                    Analyzing recalculation impact with AI...
+                  </p>
+                ) : (
+                  <p style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                    {aiExplanation}
                   </p>
                 )}
               </div>
-            ))}
-          </div>
-        </Card></div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {differences.map((d, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: '#070d19',
+                    border: '1px solid #182235',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <span style={{ fontWeight: 600, color: '#e2e8f0', textTransform: 'capitalize' }}>
+                      {d.category === 'surplus' ? '💰 Surplus' : d.category}
+                    </span>
+                    <span style={{ fontSize: 12 }}>
+                      <span style={{ color: '#f87171' }}>{fmt(d.oldAmount)}</span>
+                      {' → '}
+                      <span style={{ color: '#86efac' }}>{fmt(d.newAmount)}</span>
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, margin: 0 }}>{d.reason}</p>
+                  {d.suggestedUse && (
+                    <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 4, margin: 0 }}>
+                      💡 Suggestion: {d.suggestedUse}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
 
-      {/* Ideas Panel */}
+      {/* Card 3: AI Personalized Ideas */}
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
-              💡 AI Personalized Ideas
-            </h2>
-            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-              Creative enhancements tailored for {setup.occasion || 'your event'} in {setup.city || 'your city'}
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#38bdf8',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                margin: 0,
+                marginBottom: 4,
+              }}
+            >
+              AI PERSONALIZED IDEAS
+            </p>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Small upgrades, tailored to {cityText}.
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
+              Creative enhancements for this {occasionText}&apos;s priorities.
             </p>
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AIBadge demo={ideasDemo} loading={ideasLoading} />
-            <Btn onClick={fetchIdeas} disabled={ideasLoading} size="sm">
-              {ideasLoading ? '⏳ Generating...' : ideas.length ? '🔄 Refresh Ideas' : '✨ Get 5 Ideas'}
-            </Btn>
+            <button
+              type="button"
+              onClick={fetchIdeas}
+              disabled={ideasLoading}
+              style={{
+                background: '#60a5fa',
+                color: '#070d19',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: ideasLoading ? 'not-allowed' : 'pointer',
+                opacity: ideasLoading ? 0.5 : 1,
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#3b82f6')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#60a5fa')}
+            >
+              {ideasLoading ? 'Generating...' : 'Refresh Ideas'}
+            </button>
           </div>
         </div>
 
@@ -419,53 +614,44 @@ export default function BudgetTab({ setup }: Props) {
           </div>
         )}
 
-        {!ideasLoading && ideas.length === 0 && (
-          <div style={{ padding: '16px 0', color: '#64748b', fontSize: 13, textAlign: 'center' }}>
-            Click &quot;Get 5 Ideas&quot; to generate budget-aligned ideas and special touches for your event.
-          </div>
-        )}
-
         {!ideasLoading && ideas.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 14,
+            }}
+          >
             {ideas.map((item, idx) => (
               <div
                 key={idx}
                 style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: '#070d19',
+                  border: '1px solid #1e293b',
                   borderRadius: 8,
-                  padding: 14,
+                  padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
+                  justifyContent: 'space-between',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc' }}>
-                    {idx + 1}. {item.title}
-                  </span>
-                  <span
-                    style={{
-                      background: '#14532d',
-                      color: '#86efac',
-                      borderRadius: 12,
-                      padding: '2px 8px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                <div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#38bdf8' }}>
                     {item.costRange}
                   </span>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', marginTop: 4, marginBottom: 6 }}>
+                    {idx + 1}. {item.title}
+                  </h4>
+                  <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5, margin: 0 }}>
+                    {item.whyItFits}
+                  </p>
                 </div>
-                <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5, margin: 0 }}>
-                  {item.whyItFits}
-                </p>
               </div>
             ))}
           </div>
         )}
       </Card>
+
     </div>
   );
 }
